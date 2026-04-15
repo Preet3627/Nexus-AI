@@ -9,10 +9,6 @@ license = "MIT"
 description = "Native macOS AI assistant with Thuki-inspired floating overlay"
 repository = "https://github.com/yourusername/Nexus-AI"
 
-[lib]
-name = "nexus_ai_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
-
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
@@ -21,8 +17,7 @@ tauri = { version = "2", features = [
     "macos-private-api",
     "tray-icon",
     "image-png",
-    "protocol-asset",
-    "devtools"
+    "protocol-asset"
 ]}
 tauri-macros = "2"
 serde = { version = "1", features = ["derive"] }
