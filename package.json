@@ -1,0 +1,58 @@
+{
+  "name": "nexus-ai",
+  "version": "0.1.0",
+  "description": "Native macOS AI assistant with Thuki-inspired floating overlay",
+  "type": "module",
+  "author": "Nexus-AI Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/Nexus-AI.git"
+  },
+  "keywords": [
+    "macos",
+    "ai",
+    "assistant",
+    "tauri",
+    "swiftui",
+    "llm",
+    "ollama",
+    "openai",
+    "claude",
+    "gemini",
+    "security",
+    "touch-id",
+    "encryption"
+  ],
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri",
+    "generate": "xcodegen generate",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "test": "npm run typecheck && npm run lint",
+    "test:watch": "vitest",
+    "release": "tauri build --bundles dmg"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

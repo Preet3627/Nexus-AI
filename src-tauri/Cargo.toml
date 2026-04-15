@@ -1,0 +1,73 @@
+# Cargo.toml - Rust Dependencies
+
+[package]
+name = "nexus-ai"
+version = "0.1.0"
+edition = "2021"
+authors = ["Nexus-AI Team"]
+license = "MIT"
+description = "Native macOS AI assistant with Thuki-inspired floating overlay"
+repository = "https://github.com/yourusername/Nexus-AI"
+
+[lib]
+name = "nexus_ai_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [
+    "macos-private-api",
+    "tray-icon",
+    "image-png",
+    "protocol-asset",
+    "devtools"
+]}
+tauri-macros = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+dirs = "5"
+base64 = "0.22"
+image = "0.25"
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+anyhow = "1"
+once_cell = "1"
+parking_lot = "0.12"
+futures = "0.3"
+
+[target.'cfg(macos)'.dependencies]
+core-graphics = "0.23"
+core-foundation = "0.10"
+ApplicationServices = "0.1"
+
+[target.'cfg(macos)'.dependencies.apple]
+version = "0.19"
+features = ["OS_APPLICATIONSERVICES", "APPLICATIONSERVICES"]
+
+[target.'cfg(macos)'.dependencies]
+ScreenCaptureKit = { version = "0.1", optional = true }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile]
+release.package.tauri = { version = "2", features = ["codegen"] }
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "z"
+strip = true
+
+[profile.dev]
+incremental = true
