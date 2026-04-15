@@ -39,10 +39,12 @@ jobs:
             ${{ runner.os }}-npm-
 
       - name: Install dependencies
-        run: cd landing-page && npm ci
+        run: npm ci
+        working-directory: landing-page
 
       - name: Build with Next.js
-        run: cd landing-page && npm run build
+        run: npm run build
+        working-directory: landing-page
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
