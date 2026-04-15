@@ -153,7 +153,7 @@ class KeychainManager {
     private let keychain: Keychain
     
     init(syncWithCloud: Bool = false) {
-        self.keychain = Keychain(service: "com.nexus-ai.app")
+        self.keychain = Keychain(service: "com.nexusai.macos")
             .accessibility(.whenUnlockedThisDeviceOnly)
         
         if syncWithCloud {

@@ -33,7 +33,7 @@ targets:
         type: group
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.nexus-ai.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.nexusai.macos
         INFOPLIST_FILE: Info.plist
         CODE_SIGN_ENTITLEMENTS: Nexus-AI.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

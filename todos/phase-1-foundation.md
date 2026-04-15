@@ -54,7 +54,7 @@ Add dependencies:
 
 Key settings:
 - productName: Nexus-AI
-- identifier: com.nexus-ai.app
+- identifier: com.nexusai.macos
 - macOSPrivateApi: true
 - NSPanel configuration
 - System tray support

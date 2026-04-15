@@ -4,7 +4,7 @@ import Security
 public final class KeychainService {
     private let service: String
 
-    public init(service: String = "com.nexus-ai.app") {
+    public init(service: String = "com.nexusai.macos") {
         self.service = service
     }
 

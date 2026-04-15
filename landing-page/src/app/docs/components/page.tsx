@@ -305,7 +305,7 @@ struct NexusApp: App {
     ],
     code: `class KeychainService {
     static let shared = KeychainService()
-    private let service = "com.nexus-ai.app"
+    private let service = "com.nexusai.macos"
     
     func save(key: String, value: String) throws {
         guard let data = value.data(using: .utf8) else { return }

@@ -46,7 +46,7 @@ import Security
 import KeychainAccess
 
 // Store with biometric protection
-let keychain = Keychain(service: "com.nexus-ai.app")
+let keychain = Keychain(service: "com.nexusai.macos")
     .synchronizable(true)
     .accessibility(.whenUnlockedThisDeviceOnly)
 

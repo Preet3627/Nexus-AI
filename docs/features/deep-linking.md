@@ -83,7 +83,7 @@ https://nexus-ai.app/<action>/<params>
 <array>
     <dict>
         <key>CFBundleURLName</key>
-        <string>com.nexus-ai.app</string>
+        <string>com.nexusai.macos</string>
         <key>CFBundleURLSchemes</key>
         <array>
             <string>nexus-ai</string>
