@@ -32,6 +32,14 @@ jobs:
           cache: 'npm'
           cache-dependency-path: landing-page/package-lock.json
 
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('landing-page/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
         run: npm ci
         working-directory: landing-page
@@ -40,10 +48,16 @@ jobs:
         run: npm run build
         working-directory: landing-page
 
+      - name: Copy to docs folder
+        run: |
+          mkdir -p docs
+          cp -r landing-page/out/* docs/
+          touch docs/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: landing-page/out
+          path: docs
 
   deploy:
     environment:
