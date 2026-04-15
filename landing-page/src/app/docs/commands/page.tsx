@@ -4,18 +4,14 @@ import { Command, Search, Copy, Check } from 'lucide-react'
 import { useState } from 'react'
 
 const slashCommands = [
-  { command: '/screen', description: 'Capture and analyze screen content', usage: '/screen' },
-  { command: '/think', description: 'Enable deep reasoning mode', usage: '/think [question]' },
-  { command: '/summarize', description: 'Summarize conversation or text', usage: '/summarize' },
-  { command: '/search', description: 'Search the web', usage: '/search [query]' },
-  { command: '/translate', description: 'Translate text', usage: '/translate [to lang] [text]' },
-  { command: '/code', description: 'Generate code', usage: '/code [language] [description]' },
-  { command: '/image', description: 'Generate image', usage: '/image [description]' },
-  { command: '/automation', description: 'Create or manage automations', usage: '/automation [action]' },
-  { command: '/export', description: 'Export conversation', usage: '/export [format]' },
-  { command: '/theme', description: 'Change theme', usage: '/theme [name]' },
-  { command: '/help', description: 'Show all commands', usage: '/help' },
-  { command: '/clear', description: 'Clear conversation', usage: '/clear' },
+  { command: 'shell', description: 'Execute a shell command', usage: 'Run: ls -la', category: 'System' },
+  { command: 'brightness', description: 'Set display brightness', usage: 'Set brightness to 0.5', category: 'System' },
+  { command: 'volume', description: 'Control system volume', usage: 'Set volume to 0.8', category: 'System' },
+  { command: 'open_app', description: 'Open an application', usage: 'Open Safari', category: 'Application' },
+  { command: 'screenshot', description: 'Capture screen', usage: 'Take screenshot', category: 'Media' },
+  { command: 'clipboard', description: 'Read/write clipboard', usage: 'Copy text to clipboard', category: 'System' },
+  { command: 'notification', description: 'Show notification', usage: 'Show notification', category: 'System' },
+  { command: 'automation', description: 'Manage automations', usage: 'Create automation', category: 'Automation' },
 ]
 
 export default function CommandsPage() {
