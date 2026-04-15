@@ -1,0 +1,27 @@
+{
+  "name": "Nexus-AI",
+  "description": "Native macOS AI Assistant with floating overlay, multi-LLM support, and enterprise security",
+  "version": "1.0.0",
+  "icons": [
+    {
+      "url": "https://preet3627.github.io/Nexus-AI/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "url": "https://preet3627.github.io/Nexus-AI/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "related_links": [
+    {
+      "url": "https://github.com/preet3627/Nexus-AI",
+      "description": "GitHub Repository"
+    },
+    {
+      "url": "https://github.com/preet3627/Nexus-AI/releases",
+      "description": "Releases"
+    }
+  ]
+}
