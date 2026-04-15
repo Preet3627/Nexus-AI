@@ -1,0 +1,10 @@
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/debug/deps/cocoa-362dc5b91e2c7a97.d: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/appkit.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/base.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/foundation.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/quartzcore.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/macros.rs
+
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/debug/deps/libcocoa-362dc5b91e2c7a97.rmeta: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/appkit.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/base.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/foundation.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/quartzcore.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/macros.rs
+
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/lib.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/appkit.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/base.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/foundation.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/quartzcore.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cocoa-0.25.0/src/macros.rs:

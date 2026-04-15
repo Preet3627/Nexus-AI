@@ -27,7 +27,7 @@ pub struct AutoLaunchManager {
 impl AutoLaunchManager {
     pub fn new(bundle_id: &str) -> Self {
         let app_path = std::env::current_executable()
-            .map(|p| p.to_string_lossy().to_string())
+            .map(|p: std::path::PathBuf| p.to_string_lossy().to_string())
             .unwrap_or_default();
 
         Self {

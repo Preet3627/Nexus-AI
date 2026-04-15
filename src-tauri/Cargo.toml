@@ -16,10 +16,10 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [
     "macos-private-api",
     "tray-icon",
-    "image-png",
-    "protocol-asset"
+    "image-png"
 ]}
 tauri-macros = "2"
+tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
@@ -31,24 +31,19 @@ base64 = "0.22"
 image = "0.25"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-appender = "0.2"
 anyhow = "1"
 once_cell = "1"
 parking_lot = "0.12"
 lazy_static = "1.5"
 futures = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
 
 [target.'cfg(macos)'.dependencies]
 core-graphics = "0.23"
 core-foundation = "0.10"
-apple = { version = "0.2", features = ["OS_APPLICATIONSERVICES", "APPLICATIONSERVICES"] }
-screencapturekit = { version = "0.1", optional = true }
-
-[features]
-default = ["custom-protocol"]
-custom-protocol = ["tauri/custom-protocol"]
+apple = "0.2"
 
 [profile.release]
 panic = "abort"
