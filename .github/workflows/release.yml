@@ -35,6 +35,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -45,12 +53,37 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: Cache Rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
+
+      - name: Cache Homebrew
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/xcodegen
+            /opt/homebrew/Cellar/xcodegen
+          key: ${{ runner.os }}-homebrew-release-${{ hashFiles('.github/workflows/release.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-homebrew-release-
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Install XcodeGen
+      - name: Cache XcodeGen
         run: |
-          if ! command -v xcodegen &> /dev/null; then
+          if [ ! -f /usr/local/bin/xcodegen ] && [ ! -f /opt/homebrew/bin/xcodegen ]; then
             brew install xcodegen
           fi
 

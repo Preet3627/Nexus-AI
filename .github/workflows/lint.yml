@@ -18,6 +18,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache SwiftLint
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swiftlint.swiftlint
+          key: ${{ runner.os }}-swiftlint-${{ hashFiles('.github/workflows/lint.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-swiftlint-
+
       - name: Install SwiftLint
         run: brew install swiftlint
 
@@ -40,6 +48,17 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+
+      - name: Cache Rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/
+            target/
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-rust-
 
       - name: Run rustfmt
         run: |
@@ -64,6 +83,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
         run: npm ci
 
@@ -85,6 +112,14 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
       - name: Install dependencies
         run: npm ci

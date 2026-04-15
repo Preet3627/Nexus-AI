@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Sparkles,
@@ -23,7 +23,26 @@ import {
   Globe,
   Code2,
   Layers3,
+  Download,
+  Tag,
+  ArrowDownToLine,
+  FileText,
+  CheckCircle2,
 } from 'lucide-react'
+
+  interface ReleaseData {
+  tag: string
+  name: string
+  body: string
+  html_url: string
+  published_at: string
+  assets: Array<{
+    name: string
+    download_count: number
+    browser_download_url: string
+    size: number
+  }>
+}
 
 const features = [
   {
@@ -76,6 +95,78 @@ const nativeApis = [
 
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [release, setRelease] = useState<ReleaseData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('https://api.github.com/repos/preet3627/Nexus-AI/releases/latest', {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Nexus-AI-Landing-Page',
+      },
+      cache: 'force-cache',
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.error) {
+          setRelease({
+            tag: data.tag_name,
+            name: data.name,
+            body: data.body,
+            html_url: data.html_url,
+            published_at: data.published_at,
+            assets: data.assets?.map((asset: any) => ({
+              name: asset.name,
+              download_count: asset.download_count,
+              browser_download_url: asset.browser_download_url,
+              size: asset.size,
+            })) || [],
+          })
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+
+  const parseChangelog = (body: string) => {
+    if (!body) return []
+    const sections: { title: string; items: string[] }[] = []
+    const lines = body.split('\n')
+    let currentSection = { title: 'Changes', items: [] as string[] }
+    
+    lines.forEach((line) => {
+      const trimmed = line.trim()
+      if (trimmed.startsWith('## ')) {
+        if (currentSection.items.length > 0) {
+          sections.push(currentSection)
+        }
+        currentSection = { title: trimmed.replace('## ', ''), items: [] }
+      } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+        currentSection.items.push(trimmed.slice(2))
+      } else if (trimmed.startsWith('### ')) {
+        currentSection.title = trimmed.replace('### ', '')
+      }
+    })
+    
+    if (currentSection.items.length > 0) {
+      sections.push(currentSection)
+    }
+    
+    return sections.length > 0 ? sections : [{ title: 'Changes', items: body.split('\n').filter(l => l.trim()).slice(0, 5) }]
+  }
 
   return (
     <div className="min-h-screen">
@@ -99,6 +190,9 @@ export default function HomePage() {
               </Link>
               <Link href="#native" className="text-sm text-white/60 hover:text-white transition-colors">
                 Native APIs
+              </Link>
+              <Link href="#downloads" className="text-sm text-white/60 hover:text-white transition-colors">
+                Downloads
               </Link>
               <Link href="#setup" className="text-sm text-white/60 hover:text-white transition-colors">
                 Setup
@@ -132,9 +226,23 @@ export default function HomePage() {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-8 animate-fade-in">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-sm text-white/80">Open Source - Apache 2.0</span>
+          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full glass mb-8 animate-fade-in">
+            {loading ? (
+              <span className="text-sm text-white/60">Loading...</span>
+            ) : release ? (
+              <>
+                <span className="flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm font-mono text-purple-400">{release.tag}</span>
+                </span>
+                <span className="w-px h-4 bg-white/20" />
+                <span className="text-sm text-white/60">{formatDate(release.published_at)}</span>
+                <span className="w-px h-4 bg-white/20" />
+                <span className="text-sm text-white/60">Apache 2.0</span>
+              </>
+            ) : (
+              <span className="text-sm text-white/60">Open Source - Apache 2.0</span>
+            )}
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold mb-6 animate-slide-up">
@@ -381,6 +489,136 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Downloads */}
+      <section id="downloads" className="py-20 border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Download</h2>
+            <p className="text-white/60">Get the latest release and start using Nexus-AI.</p>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            {loading ? (
+              <div className="glass rounded-2xl p-12 text-center">
+                <div className="w-12 h-12 rounded-full bg-purple-500/20 animate-pulse mx-auto mb-4" />
+                <p className="text-white/60">Loading release info...</p>
+              </div>
+            ) : release ? (
+              <div className="space-y-6">
+                <div className="glass rounded-2xl p-8">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <Tag className="w-5 h-5 text-purple-400" />
+                        <span className="text-2xl font-bold font-mono">{release.tag}</span>
+                      </div>
+                      <p className="text-white/60">{release.name || release.tag}</p>
+                      <p className="text-sm text-white/40 mt-1">Released {formatDate(release.published_at)}</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <a
+                        href={release.html_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
+                      >
+                        <Github className="w-5 h-5" />
+                        View on GitHub
+                      </a>
+                      <a
+                        href={`https://github.com/preet3627/Nexus-AI/archive/refs/tags/${release.tag}.zip`}
+                        className="px-6 py-3 rounded-xl glass hover:bg-white/10 transition-colors flex items-center gap-2"
+                      >
+                        <Download className="w-5 h-5" />
+                        Source Code
+                      </a>
+                    </div>
+                  </div>
+
+                  {release.assets && release.assets.length > 0 && (
+                    <div className="mb-8">
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <ArrowDownToLine className="w-5 h-5 text-purple-400" />
+                        Assets
+                      </h4>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {release.assets.map((asset, i) => (
+                          <a
+                            key={i}
+                            href={asset.browser_download_url}
+                            className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Download className="w-5 h-5 text-purple-400 group-hover:text-purple-300" />
+                              <div>
+                                <p className="font-medium">{asset.name}</p>
+                                <p className="text-sm text-white/40">{formatSize(asset.size)}</p>
+                              </div>
+                            </div>
+                            {asset.download_count > 0 && (
+                              <span className="text-xs text-white/40">{asset.download_count.toLocaleString()} downloads</span>
+                            )}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {release.body && (
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-purple-400" />
+                        Changelog
+                      </h4>
+                      <div className="bg-white/5 rounded-xl p-6 max-h-96 overflow-y-auto">
+                        {parseChangelog(release.body).map((section, i) => (
+                          <div key={i} className="mb-6 last:mb-0">
+                            <h5 className="text-purple-400 font-medium mb-3">{section.title}</h5>
+                            <ul className="space-y-2">
+                              {section.items.slice(0, 10).map((item, j) => (
+                                <li key={j} className="flex items-start gap-2 text-sm text-white/70">
+                                  <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+                                  <span>{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-center">
+                  <a
+                    href="https://github.com/preet3627/Nexus-AI/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-2"
+                  >
+                    View all releases
+                    <ArrowDownToLine className="w-4 h-4" />
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="glass rounded-2xl p-12 text-center">
+                <p className="text-white/60 mb-4">No releases found</p>
+                <a
+                  href="https://github.com/preet3627/Nexus-AI/releases/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl glass hover:bg-white/10 transition-colors"
+                >
+                  <Github className="w-5 h-5" />
+                  Create First Release
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </section>

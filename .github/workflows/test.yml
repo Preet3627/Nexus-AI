@@ -31,6 +31,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -42,6 +50,20 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: Cache Rust target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.rust }}-
+            ${{ runner.os }}-cargo-
+
       - name: Install dependencies
         run: npm ci
 
@@ -51,7 +73,6 @@ jobs:
       - name: Lint (npm)
         run: npm run lint
 
-      # Rust tests (macOS only)
       - name: Rust tests
         if: matrix.os == 'macos-latest'
         run: |
@@ -82,6 +103,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -90,6 +120,25 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+
+      - name: Cache XcodeGen
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/org.neovimstellungen.synne
+            /usr/local/bin/xcodegen
+          key: ${{ runner.os }}-xcodegen
+
+      - name: Cache Homebrew
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /usr/local/Cellar/xcodegen
+            /opt/homebrew/Cellar/xcodegen
+          key: ${{ runner.os }}-homebrew-xcodegen-${{ hashFiles('.github/workflows/test.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-homebrew-xcodegen-
 
       - name: Install dependencies
         run: npm ci
@@ -135,6 +184,16 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+
+      - name: Cache Rust target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            target/
+          key: ${{ runner.os }}-coverage-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-coverage-
 
       - name: Install dependencies
         run: npm ci
