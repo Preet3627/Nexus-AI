@@ -56,8 +56,6 @@ ScreenCaptureKit = { version = "0.1", optional = true }
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
-[profile]
-release.package.tauri = { version = "2", features = ["codegen"] }
 [profile.release]
 panic = "abort"
 codegen-units = 1
