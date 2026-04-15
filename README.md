@@ -32,6 +32,8 @@
 - 🔐 **Biometric Auth** - Touch ID / Face ID protection
 - ☁️ **iCloud Sync** - Optional encrypted sync across devices
 - 🖥️ **System Tray** - Background operation with quick access
+- 🚀 **Hidden Mode** - Stays hidden in dock like Raycast (LSUIElement)
+- ⚡ **Auto-Start** - Launches automatically at login, starts hidden
 
 ### LLM Providers
 | Provider | Status | Models |
@@ -318,60 +320,6 @@ npm run build
 ```
 
 Output is in `landing-page/out/` for GitHub Pages deployment.
-Nexus-AI/
-├── src/                          # SwiftUI Frontend
-│   ├── App/
-│   │   └── NexusApp.swift       # App entry point
-│   ├── Views/
-│   │   ├── AskBarView.swift     # Spotlight input
-│   │   ├── ConversationView.swift # Chat UI
-│   │   ├── ChatBubble.swift     # Message bubbles
-│   │   ├── HistoryPanel.swift   # History list
-│   │   ├── SettingsView.swift   # Configuration
-│   │   ├── PermissionsView.swift # TCC permissions
-│   │   └── OnboardingView.swift # First-run setup
-│   ├── ViewModels/
-│   │   └── ChatViewModel.swift  # Chat logic
-│   ├── Models/
-│   │   ├── Message.swift        # Message model
-│   │   └── Conversation.swift   # Conversation model
-│   ├── Security/
-│   │   ├── BiometricAuth.swift  # Touch ID / Face ID
-│   │   ├── SecureStorage.swift  # AES-256-GCM
-│   │   ├── KeychainManager.swift # iCloud Keychain
-│   │   └── PermissionManager.swift # TCC checks
-│   └── Resources/
-│       └── Assets.xcassets
-├── src-tauri/                    # Rust Backend
-│   ├── src/
-│   │   ├── main.rs              # Entry point
-│   │   ├── lib.rs               # NSPanel setup
-│   │   ├── activator.rs         # Double-tap Control
-│   │   ├── llm_providers.rs     # Multi-LLM support
-│   │   ├── comet_bridge.rs       # Comet-AI IPC
-│   │   ├── action_executor.rs    # Action chains
-│   │   ├── security.rs          # Encryption
-│   │   ├── storage.rs           # SQLite
-│   │   ├── permissions.rs       # TCC
-│   │   └── screenshot.rs        # Screen capture
-│   ├── Cargo.toml
-│   └── tauri.conf.json
-├── docs/                         # Documentation
-│   ├── README.md
-│   ├── CONTRIBUTING.md
-│   ├── SECURITY.md
-│   └── ARCHITECTURE.md
-├── .github/
-│   └── workflows/
-│       ├── release.yml
-│       ├── test.yml
-│       └── lint.yml
-├── milestones/                   # Progress tracking
-├── todos/                       # Task lists
-├── Nexus-AI.entitlements
-├── Info.plist
-├── project.yml                  # XcodeGen
-└── package.json
 ```
 
 ---
