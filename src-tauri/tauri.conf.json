@@ -3,9 +3,6 @@
   "productName": "Nexus-AI",
   "version": "0.1.0",
   "identifier": "com.nexus-ai.app",
-  "build": {
-    "devtools": true
-  },
   "app": {
     "windows": [
       {
@@ -42,8 +39,7 @@
     "copyright": "Copyright 2026 Nexus-AI Team",
     "category": "public.app-category.productivity",
     "shortDescription": "Native macOS AI Assistant",
-    "longDescription": "Native macOS AI assistant with floating overlay, multi-LLM support, enterprise security, and Siri integration.",
-    "minimumSystemVersion": "13.0"
+    "longDescription": "Native macOS AI assistant with floating overlay, multi-LLM support, enterprise security, and Siri integration."
   },
   "plugins": {}
 }
