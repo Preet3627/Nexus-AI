@@ -49,12 +49,7 @@ futures = "0.3"
 core-graphics = "0.23"
 core-foundation = "0.10"
 ApplicationServices = "0.1"
-
-[target.'cfg(macos)'.dependencies.apple]
-version = "0.19"
-features = ["OS_APPLICATIONSERVICES", "APPLICATIONSERVICES"]
-
-[target.'cfg(macos)'.dependencies]
+apple = { version = "0.19", features = ["OS_APPLICATIONSERVICES", "APPLICATIONSERVICES"] }
 ScreenCaptureKit = { version = "0.1", optional = true }
 
 [features]

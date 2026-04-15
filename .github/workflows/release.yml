@@ -119,7 +119,7 @@ jobs:
             ## What's New
 
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-          isDraft: false
+          releaseDraft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           args: ${{ matrix.args }}
 
@@ -170,5 +170,5 @@ jobs:
 
             1. Download the DMG
             2. Open and drag to Applications
-          isDraft: false
+          releaseDraft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
