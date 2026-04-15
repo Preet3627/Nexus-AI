@@ -15,27 +15,32 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build-tauri:
+    permissions:
+      contents: write
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: macos-latest
-            target: x86_64-apple-darwin
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+            target: 'aarch64-apple-darwin'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            target: 'x86_64-apple-darwin'
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Cache npm
+      - name: Cache npm dependencies
         uses: actions/cache@v4
         with:
           path: ~/.npm
@@ -43,12 +48,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
+      - name: Install npm dependencies
+        run: npm ci
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Cache cargo
+      - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
@@ -61,36 +69,27 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-release-
             ${{ runner.os }}-cargo-
 
-      - name: Cache Homebrew
+      - name: Cache XcodeGen
+        id: xcodegen-cache
         uses: actions/cache@v4
         with:
           path: |
-            ~/Library/Caches/Homebrew
-            /usr/local/Cellar/xcodegen
-            /opt/homebrew/Cellar/xcodegen
-          key: ${{ runner.os }}-homebrew-release-${{ hashFiles('.github/workflows/release.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-homebrew-release-
+            /usr/local/bin/xcodegen
+            /opt/homebrew/bin/xcodegen
+          key: ${{ runner.os }}-xcodegen
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install XcodeGen
+        if: steps.xcodegen-cache.outputs.cache-hit != 'true'
+        run: brew install xcodegen
 
-      - name: Cache XcodeGen
-        run: |
-          if [ ! -f /usr/local/bin/xcodegen ] && [ ! -f /opt/homebrew/bin/xcodegen ]; then
-            brew install xcodegen
-          fi
-
-      - name: Generate project
+      - name: Generate Xcode project
         run: npm run generate
 
-      - name: Build Tauri
+      - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -100,46 +99,77 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Nexus-AI ${{ github.ref_name }}'
           releaseBody: |
-            ## What's New
-
-            See the [changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-
             ## Downloads
 
-            - macOS (Apple Silicon)
-            - macOS (Intel)
+            Download the DMG installer for your platform:
+            - **macOS (Apple Silicon)**: Nexus-AI_x.x.x_aarch64.dmg
+            - **macOS (Intel)**: Nexus-AI_x.x.x_x86_64.dmg
+
+            ## Installation
+
+            1. Download the DMG for your Mac type
+            2. Open the DMG file
+            3. Drag Nexus-AI to Applications
+            4. Launch from Applications
+
+            ## Requirements
+
+            - macOS 13.0 (Ventura) or later
+            - Apple Silicon or Intel processor
+
+            ## What's New
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           isDraft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
+          args: ${{ matrix.args }}
 
-  create-homebrew:
-    runs-on: ubuntu-latest
-    needs: release
+  build-dmg-universal:
+    permissions:
+      contents: write
+    runs-on: macos-latest
+    needs: build-tauri
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create Pull Request
-        uses: datwood/homebrew-create-pr@latest
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          repository: homebrew-nexus-ai
-          formula_name: nexus-ai
-          install_path: /opt/homebrew/bin/nexus-ai
-          download_url: ${{ needs.release.outputs.download_url }}
-          sha256: ${{ needs.release.outputs.sha256 }}
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: npm run generate
+
+      - name: Build universal binary
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Nexus-AI ${{ github.ref_name }} (Universal)'
+          releaseBody: |
+            ## Universal Binary
 
-  notify:
-    runs-on: ubuntu-latest
-    needs: [release, create-homebrew]
-    if: always()
-    steps:
-      - name: Notify Success
-        if: needs.release.result == 'success'
-        run: echo "Release completed successfully!"
+            This single DMG works on both Apple Silicon and Intel Macs.
 
-      - name: Notify Failure
-        if: needs.release.result == 'failure'
-        run: |
-          echo "Release failed!"
-          exit 1
+            ## Installation
+
+            1. Download the DMG
+            2. Open and drag to Applications
+          isDraft: false
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}

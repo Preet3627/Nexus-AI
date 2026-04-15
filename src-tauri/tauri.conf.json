@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Nexus-AI",
+  "version": "0.1.0",
+  "identifier": "com.nexus-ai.app",
+  "build": {
+    "devtools": true
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Nexus-AI",
+        "width": 600,
+        "height": 700,
+        "minWidth": 400,
+        "minHeight": 80,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "visible": true,
+        "focus": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "macOSPrivateApi": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "copyright": "Copyright 2026 Nexus-AI Team",
+    "category": "public.app-category.productivity",
+    "shortDescription": "Native macOS AI Assistant",
+    "longDescription": "Native macOS AI assistant with floating overlay, multi-LLM support, enterprise security, and Siri integration.",
+    "minimumSystemVersion": "13.0"
+  },
+  "plugins": {}
+}
