@@ -1,0 +1,9 @@
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/release/deps/signal_hook_registry-4231f7a0365fa033.d: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/half_lock.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/vec_map.rs
+
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/release/deps/libsignal_hook_registry-4231f7a0365fa033.rlib: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/half_lock.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/vec_map.rs
+
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/release/deps/libsignal_hook_registry-4231f7a0365fa033.rmeta: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/half_lock.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/vec_map.rs
+
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/half_lock.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/vec_map.rs:

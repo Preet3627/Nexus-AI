@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatMessage {
     pub role: String,
     pub content: String,
@@ -12,8 +12,17 @@ pub struct ChatResponse {
     pub content: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LLMConfig {
+    pub provider: Option<String>,
+    pub url: Option<String>,
+    pub model: Option<String>,
+    pub api_key: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
+    pub config: Option<LLMConfig>,
     pub require_auth: bool,
     pub auth_timeout: i32,
     pub storage_backend: String,
@@ -23,6 +32,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            config: None,
             require_auth: true,
             auth_timeout: 300,
             storage_backend: "secure-enclave".to_string(),
@@ -67,7 +77,7 @@ pub fn get_settings() -> Result<Settings, String> {
 
 #[command]
 pub fn save_settings(settings: Settings) -> Result<(), String> {
-    tracing::info!("Saving settings: {:?}", settings);
+    tracing::info!("Saving settings with config: {:?}", settings.config);
     Ok(())
 }
 

@@ -16,7 +16,6 @@ pub struct Permission {
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use super::*;
     use std::process::Command;
 
     pub fn check_accessibility() -> bool {

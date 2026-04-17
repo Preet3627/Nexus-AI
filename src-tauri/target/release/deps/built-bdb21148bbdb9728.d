@@ -1,0 +1,10 @@
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/release/deps/built-bdb21148bbdb9728.d: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/environment.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/util.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/../README.md
+
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/release/deps/libbuilt-bdb21148bbdb9728.rlib: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/environment.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/util.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/../README.md
+
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/release/deps/libbuilt-bdb21148bbdb9728.rmeta: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/environment.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/util.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/../README.md
+
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/lib.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/environment.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/util.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/built-0.8.0/src/../README.md:

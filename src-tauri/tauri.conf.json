@@ -3,6 +3,9 @@
   "productName": "Nexus-AI",
   "version": "0.1.0",
   "identifier": "com.nexusai.macos",
+  "build": {
+    "frontendDist": "../src/web"
+  },
   "app": {
     "windows": [
       {

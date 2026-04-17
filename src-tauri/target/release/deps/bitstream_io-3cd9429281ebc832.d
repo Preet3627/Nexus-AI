@@ -1,0 +1,10 @@
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/release/deps/bitstream_io-3cd9429281ebc832.d: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/huffman.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/read.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/write.rs
+
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/release/deps/libbitstream_io-3cd9429281ebc832.rlib: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/huffman.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/read.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/write.rs
+
+/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/release/deps/libbitstream_io-3cd9429281ebc832.rmeta: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/huffman.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/read.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/write.rs
+
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/lib.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/huffman.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/read.rs:
+/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bitstream-io-4.10.0/src/write.rs:
