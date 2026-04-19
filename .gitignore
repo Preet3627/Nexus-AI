@@ -64,6 +64,11 @@ out/
 dist/
 .next/
 
+# Tauri
+src-tauri/target/
+src-tauri/dist/
+src-tauri/src-tauri
+
 # Environment
 .env
 .env.local
