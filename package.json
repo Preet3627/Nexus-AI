@@ -11,6 +11,7 @@
   },
   "scripts": {
     "dev": "tauri dev",
+    "generate": "tauri generate",
     "frontend:dev": "vite",
     "build:frontend": "tsc && vite build",
     "build:backend": "tauri build --bundles app",
