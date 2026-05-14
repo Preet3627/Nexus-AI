@@ -429,14 +429,13 @@ fn notify_frontend_ready(app_handle: tauri::AppHandle, db: tauri::State<history:
                 let stage = onboarding::get_stage(&conn)
                     .unwrap_or(onboarding::OnboardingStage::Permissions);
 
-                // The "intro" stage means quit_and_relaunch already wrote it
-                // before restarting, confirming the user just granted all
-                // permissions. Skip the live permission check here: on macOS 15+
-                // CGPreflightScreenCaptureAccess can return a stale false negative
-                // immediately after a restart, which would wrongly loop the user
-                // back to the permissions screen.
+                // The "intro" stage means quit_and_relaunch already marked
+                // complete before restarting. Skip the live permission check
+                // here: on macOS 15+ CGPreflightScreenCaptureAccess can return
+                // a stale false negative immediately after a restart, which
+                // would wrongly loop the user back to the permissions screen.
                 if matches!(stage, onboarding::OnboardingStage::Intro) {
-                    show_onboarding_window(&app_handle, onboarding::OnboardingStage::Intro);
+                    show_overlay(&app_handle, crate::context::ActivationContext::empty());
                     return;
                 }
 
@@ -454,10 +453,11 @@ fn notify_frontend_ready(app_handle: tauri::AppHandle, db: tauri::State<history:
                     return;
                 }
 
-                // All permissions granted. If not yet complete, show intro.
+                // All permissions granted. Skip intro — go straight to overlay.
                 if !matches!(stage, onboarding::OnboardingStage::Complete) {
-                    let _ = onboarding::set_stage(&conn, &onboarding::OnboardingStage::Intro);
-                    show_onboarding_window(&app_handle, onboarding::OnboardingStage::Intro);
+                    let _ = onboarding::mark_complete(&conn);
+                    drop(conn);
+                    show_overlay(&app_handle, crate::context::ActivationContext::empty());
                     return;
                 }
                 // Complete: fall through to show the overlay.

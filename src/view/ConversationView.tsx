@@ -67,6 +67,13 @@ export function ConversationView({
   onImagePreview,
 }: ConversationViewProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasRenderedAssistantContent = messages.some(
+    (message) =>
+      message.role === "assistant" &&
+      Boolean(message.content.trim() || message.thinkingContent?.trim()),
+  );
+  const shouldUseExpandedLayout =
+    hasRenderedAssistantContent || messages.length >= 3;
 
   /** Threshold in pixels — if within this distance of the bottom, consider "near bottom". */
   const NEAR_BOTTOM_THRESHOLD = 60;
@@ -156,7 +163,9 @@ export function ConversationView({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ opacity: { duration: 0.2 } }}
-      className="chat-area flex-1 min-h-0 flex flex-col"
+      className={`chat-area flex flex-col ${
+        shouldUseExpandedLayout ? "flex-1 min-h-0" : "flex-none"
+      }`}
     >
       <WindowControls
         onClose={onClose}
@@ -169,7 +178,11 @@ export function ConversationView({
 
       <div
         ref={scrollContainerRef}
-        className="chat-messages-scroll px-5 py-4 flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto"
+        className={`chat-messages-scroll px-5 py-4 flex flex-col gap-3 ${
+          shouldUseExpandedLayout
+            ? "flex-1 min-h-0 overflow-y-auto"
+            : "max-h-[320px] overflow-y-auto"
+        }`}
       >
         {messages.map((msg, i) => {
           const isLastAssistant =

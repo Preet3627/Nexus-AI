@@ -84,15 +84,21 @@ private struct NativeCommandCenterView: View {
                 dragHandle
                 if metrics.stacksTopBar {
                     headerCopy(metrics: metrics)
-                    HStack(spacing: 12) {
+                    VStack(spacing: 12) {
                         providerMenu(metrics: metrics)
-                        touchIDButton
+                        HStack(spacing: 12) {
+                            accountMenu(metrics: metrics)
+                            settingsMenu(metrics: metrics)
+                            touchIDButton
+                        }
                     }
                 } else {
                     HStack(alignment: .center, spacing: 18) {
                         headerCopy(metrics: metrics)
                         Spacer()
                         providerMenu(metrics: metrics)
+                        accountMenu(metrics: metrics)
+                        settingsMenu(metrics: metrics)
                         touchIDButton
                     }
                 }
@@ -147,6 +153,12 @@ private struct NativeCommandCenterView: View {
     private var statusPills: some View {
         StatusPill(label: "SwiftUI Native", tint: Color(red: 0.42, green: 0.78, blue: 1.0))
         StatusPill(label: settings.statusHeadline, tint: Color(red: 0.58, green: 0.47, blue: 1.0))
+        if settings.isIdentityConnected {
+            StatusPill(
+                label: settings.isWorkspaceConnected ? "Shared Workspace" : "Shared Identity",
+                tint: Color(red: 0.44, green: 0.82, blue: 0.67)
+            )
+        }
     }
 
     private var touchIDButton: some View {
@@ -208,6 +220,114 @@ private struct NativeCommandCenterView: View {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(Color.white.opacity(0.08))
             )
+        }
+        .menuStyle(.borderlessButton)
+    }
+
+    private func accountMenu(metrics: LayoutMetrics) -> some View {
+        Menu {
+            Button {
+                Task {
+                    await settings.signInWithBrowserBridge()
+                }
+            } label: {
+                Label(
+                    settings.isIdentityConnected ? "Reconnect shared identity" : "Connect shared identity",
+                    systemImage: "person.crop.circle.badge.checkmark"
+                )
+            }
+
+            Button {
+                Task {
+                    await settings.connectWorkspace()
+                }
+            } label: {
+                Label(
+                    settings.isWorkspaceConnected ? "Reconnect workspace" : "Connect workspace scopes",
+                    systemImage: "tray.full"
+                )
+            }
+
+            Button {
+                Task {
+                    await settings.refreshSharedAuthStatus()
+                }
+            } label: {
+                Label("Refresh keychain session", systemImage: "arrow.clockwise")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                settings.signOutSharedAccount()
+            } label: {
+                Label("Sign out shared account", systemImage: "rectangle.portrait.and.arrow.right")
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: settings.isWorkspaceConnected ? "person.crop.circle.badge.checkmark" : "person.crop.circle")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(settings.isIdentityConnected ? Color(red: 0.46, green: 0.85, blue: 0.70) : Color.white.opacity(0.72))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Shared Account")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.56))
+                    Text(settings.authDisplayTitle)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.66))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: metrics.stacksTopBar ? .infinity : 280, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.white.opacity(0.08))
+            )
+        }
+        .menuStyle(.borderlessButton)
+    }
+
+    private func settingsMenu(metrics: LayoutMetrics) -> some View {
+        Menu {
+            Button {
+                settings.openSettings(.provider)
+            } label: {
+                Label("Provider setup", systemImage: "server.rack")
+            }
+
+            Button {
+                settings.openSettings(.account)
+            } label: {
+                Label("Account connection", systemImage: "person.badge.key")
+            }
+
+            Button {
+                settings.openSettings(.appearance)
+            } label: {
+                Label("Appearance tuning", systemImage: "paintbrush")
+            }
+
+            Button {
+                settings.openSettings(.startup)
+            } label: {
+                Label("Startup behavior", systemImage: "power")
+            }
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.86))
+                .frame(width: metrics.compactButtonSize, height: metrics.compactButtonSize)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                )
         }
         .menuStyle(.borderlessButton)
     }
@@ -299,21 +419,97 @@ private struct NativeCommandCenterView: View {
             lines: [
                 "Overlay summon: Control Control",
                 "Identity: \(settings.identityStatus)",
+                "Shared auth: \(settings.authStatus)",
                 "Result: \(settings.lastCommandResult)"
             ]
         )
 
         CommandAtmosphereCard(
-            title: "Provider Rail",
-            accent: Color(red: 1.0, green: 0.66, blue: 0.38),
-            lines: settings.availableProviders.map { provider in
-                provider == settings.selectedProvider ? "\(provider) active" : provider
-            }
+            title: "Shared Session",
+            accent: Color(red: 0.42, green: 0.84, blue: 0.68),
+            lines: [
+                settings.authDisplayTitle,
+                settings.authDisplaySubtitle,
+                settings.authError ?? settings.workspaceStatus
+            ]
         )
     }
 
     private func controlRail(metrics: LayoutMetrics) -> some View {
         VStack(spacing: metrics.railSpacing) {
+            GlassPanel {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(alignment: .center, spacing: 12) {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color(red: 0.44, green: 0.82, blue: 0.67).opacity(0.16))
+                            .frame(width: 52, height: 52)
+                            .overlay(
+                                Image(systemName: settings.isWorkspaceConnected ? "person.crop.circle.badge.checkmark" : "person.crop.circle.badge.clock")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundStyle(Color(red: 0.44, green: 0.82, blue: 0.67))
+                            )
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Shared Authentication")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                            Text(settings.authDisplaySubtitle)
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.64))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    if let authEmail = settings.authEmail, !authEmail.isEmpty {
+                        Text(authEmail)
+                            .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.94))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(Color.black.opacity(0.22))
+                            )
+                    }
+
+                    VStack(spacing: 10) {
+                        Button {
+                            Task {
+                                await settings.signInWithBrowserBridge()
+                            }
+                        } label: {
+                            authActionLabel(
+                                title: settings.isSigningInIdentity ? "Opening browser bridge..." : (settings.isIdentityConnected ? "Reconnect shared identity" : "Connect shared identity"),
+                                subtitle: "Starts from browser.ponsrischool.in, then stores the session in the shared keychain.",
+                                tint: Color(red: 0.53, green: 0.78, blue: 1.0)
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            Task {
+                                await settings.connectWorkspace()
+                            }
+                        } label: {
+                            authActionLabel(
+                                title: settings.isSigningInWorkspace ? "Opening workspace consent..." : (settings.isWorkspaceConnected ? "Reconnect workspace scopes" : "Connect Gmail + Drive scopes"),
+                                subtitle: "Writes the workspace token to the same shared storage Comet-AI already reads.",
+                                tint: Color(red: 1.0, green: 0.66, blue: 0.38)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if let authError = settings.authError, !authError.isEmpty {
+                        Text(authError)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color(red: 1.0, green: 0.69, blue: 0.56))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(metrics.panelPadding)
+            }
+
             GlassPanel {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("Quick Actions")
@@ -482,6 +678,37 @@ private struct NativeCommandCenterView: View {
             .foregroundStyle(.white.opacity(0.62))
             .lineLimit(1)
     }
+
+    private func authActionLabel(title: String, subtitle: String, tint: Color) -> some View {
+        HStack(spacing: 14) {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(tint.opacity(0.18))
+                .frame(width: 46, height: 46)
+                .overlay(
+                    Image(systemName: "arrow.up.right.square")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(tint)
+                )
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.96))
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+        )
+    }
 }
 
 private struct LayoutMetrics {
@@ -500,6 +727,7 @@ private struct LayoutMetrics {
     var composerPadding: CGFloat { width < 900 ? 18 : 22 }
     var railSpacing: CGFloat { width < 900 ? 14 : 18 }
     var topBarStackSpacing: CGFloat { stacksTopBar ? 14 : 0 }
+    var compactButtonSize: CGFloat { width < 900 ? 44 : 48 }
 
     var brandTitleSize: CGFloat { width < 900 ? 28 : 34 }
     var heroTitleSize: CGFloat {

@@ -443,7 +443,7 @@ export function SettingsPanel({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/58 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/58 px-4 py-6 backdrop-blur-md"
       onClick={onClose}
     >
       <motion.div
@@ -451,48 +451,66 @@ export function SettingsPanel({
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.96, opacity: 0, y: 18 }}
         transition={{ type: "spring", damping: 24, stiffness: 280 }}
-        className="w-[560px] max-h-[82vh] overflow-hidden rounded-[30px] border border-white/12 bg-[linear-gradient(180deg,rgba(14,18,25,0.92),rgba(10,13,20,0.82))] shadow-[0_32px_120px_-42px_rgba(0,0,0,0.88)] backdrop-blur-2xl"
+        className="my-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-[30px] border border-white/12 bg-[linear-gradient(180deg,rgba(14,18,25,0.92),rgba(10,13,20,0.82))] shadow-[0_32px_120px_-42px_rgba(0,0,0,0.88)] backdrop-blur-2xl"
+        style={{ maxHeight: "min(880px, calc(100vh - 3rem))" }}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-white/10 bg-[linear-gradient(135deg,rgba(255,140,92,0.14),rgba(94,154,255,0.08))] px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#ff995d,#ff6b5d)] shadow-[0_18px_40px_-22px_rgba(255,140,92,0.85)]">
+        <div className="shrink-0 border-b border-white/10 bg-[linear-gradient(135deg,rgba(255,140,92,0.14),rgba(94,154,255,0.08))] px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#ff995d,#ff6b5d)] shadow-[0_18px_40px_-22px_rgba(255,140,92,0.85)]">
+                <svg
+                  className="h-5 w-5 text-white"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">Settings</h2>
+                <p className="text-xs text-white/55">
+                  Providers, startup behavior, and overlay appearance
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={onClose}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/6 text-white/70 transition-colors hover:bg-white/12 hover:text-white"
+            >
               <svg
-                className="h-5 w-5 text-white"
+                className="h-4 w-4"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
               >
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
+                <path d="M18 6 6 18M6 6l12 12" />
               </svg>
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-white">Settings</h2>
-              <p className="text-xs text-white/55">
-                Providers, startup behavior, and overlay appearance
-              </p>
-            </div>
+            </button>
           </div>
 
-          <button
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/6 text-white/70 transition-colors hover:bg-white/12 hover:text-white"
-          >
-            <svg
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {[
+              "Provider + model",
+              "Shared Google account",
+              "Startup behavior",
+              "Theme tuning",
+            ].map((label) => (
+              <span
+                key={label}
+                className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[11px] font-medium text-white/60"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
-
-        <div className="max-h-[68vh] space-y-6 overflow-y-auto px-6 py-6">
+        <div className="min-h-0 space-y-6 overflow-y-auto px-6 py-6">
           <section className="space-y-4">
             <div className="flex items-center gap-2 text-white/88">
               <span className="text-xs font-semibold uppercase tracking-[0.22em] text-white/58">
@@ -500,7 +518,7 @@ export function SettingsPanel({
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {PROVIDERS.map((provider) => (
                 <button
                   key={provider.id}
@@ -548,7 +566,7 @@ export function SettingsPanel({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {isLoadingOllamaModels || isLoadingCloudModels ? (
                 <div className="col-span-2 flex items-center justify-center rounded-2xl border border-white/8 bg-black/16 px-3 py-6">
                   <svg
@@ -868,7 +886,7 @@ export function SettingsPanel({
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {THEMES.map((theme) => (
                 <button
                   key={theme.id}
@@ -946,8 +964,8 @@ export function SettingsPanel({
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-white/68">
-                    Sign in to connect Google identity first, then optionally
-                    add Gmail and Drive access for tools.
+                    Sign in through `browser.ponsrischool.in` first, then
+                    optionally add Gmail and Drive access for tools.
                   </p>
                   <button
                     onClick={handleSignInIdentity}
@@ -956,7 +974,7 @@ export function SettingsPanel({
                   >
                     {isLoadingIdentity
                       ? "Opening browser..."
-                      : "Sign in with Google"}
+                      : "Sign in via browser.ponsrischool.in"}
                   </button>
                 </div>
               )}

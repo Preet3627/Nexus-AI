@@ -143,17 +143,13 @@ pub fn check_screen_recording_tcc_granted() -> bool {
 /// Called after the user grants Screen Recording permission. macOS requires
 /// a full process restart before the new permission takes effect.
 ///
-/// Writes "intro" to the DB before restarting so `notify_frontend_ready`
-/// shows the intro screen on the next launch without calling any permission
-/// API. Permission APIs (CGPreflightScreenCaptureAccess) can return stale
-/// results immediately after a restart on macOS 15+; trusting the DB stage
-/// avoids that unreliability entirely.
+/// Marks onboarding complete so the next launch shows the overlay directly.
 #[tauri::command]
 #[cfg(target_os = "macos")]
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub fn quit_and_relaunch(app_handle: tauri::AppHandle, db: tauri::State<crate::history::Database>) {
     if let Ok(conn) = db.0.lock() {
-        let _ = crate::onboarding::set_stage(&conn, &crate::onboarding::OnboardingStage::Intro);
+        let _ = crate::onboarding::mark_complete(&conn);
     }
     app_handle.restart();
 }

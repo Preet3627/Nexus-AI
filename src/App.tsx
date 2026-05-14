@@ -464,8 +464,13 @@ const HIDE_COMMIT_DELAY_MS = 350;
 const OVERLAY_WIDTH = 600;
 /** Total transparent padding around the morphing container: pt-2(8) + pb-6(24) + motion py-2(16). */
 const CONTAINER_VERTICAL_PADDING = 48;
-/** Max morphing-container height in chat mode (matches `max-h-[600px]`) + vertical padding. */
-const MAX_CHAT_WINDOW_HEIGHT = 600 + CONTAINER_VERTICAL_PADDING;
+/** Max morphing-container height in chat mode. Shared with the container style. */
+const MAX_CHAT_CONTAINER_HEIGHT = 640;
+/** Max chat window height including the outer transparent padding. */
+const MAX_CHAT_WINDOW_HEIGHT =
+  MAX_CHAT_CONTAINER_HEIGHT + CONTAINER_VERTICAL_PADDING;
+/** Taller window height used while fixed overlay modals are open. */
+const MODAL_WINDOW_HEIGHT = 860;
 
 /** Must match `OVERLAY_LOGICAL_HEIGHT_COLLAPSED` in `src-tauri/src/lib.rs`. */
 const COLLAPSED_WINDOW_HEIGHT = 80;
@@ -649,6 +654,7 @@ function App() {
    * to chat-window mode are animated via Framer Motion `layout` prop.
    */
   const isChatMode = messages.length > 0 || isGenerating || isSubmitPending;
+  const isShellModalOpen = isSettingsOpen || isHelpOpen;
   const previousIsChatModeRef = useRef(isChatMode);
 
   /**
@@ -663,6 +669,10 @@ function App() {
    * Reference stored for ResizeObserver cleanup.
    */
   const observerRef = useRef<ResizeObserver | null>(null);
+  const heightMorphActiveRef = useRef(false);
+  const heightMorphResetTimerRef = useRef<number | null>(null);
+  const modalWindowOpenRef = useRef(isShellModalOpen);
+  modalWindowOpenRef.current = isShellModalOpen;
 
   /**
    * Mirror of `growsUpward` as a ref so the ResizeObserver closure can read
@@ -785,6 +795,9 @@ function App() {
         (entries) => {
           requestAnimationFrame(() => {
             for (const entry of entries) {
+              if (modalWindowOpenRef.current) {
+                continue;
+              }
               const rect = entry.target.getBoundingClientRect();
               // Total vertical room: 8px (pt-2) + 24px (pb-6) + 16px (motion py-2) = 48px.
               // This ensures the tightened drop shadows aren't clipped by the native window edge.
@@ -828,6 +841,25 @@ function App() {
     }
   }, []);
 
+  const resizeOverlayWindow = useCallback((targetHeight: number) => {
+    const clampedHeight = Math.max(COLLAPSED_WINDOW_HEIGHT, targetHeight);
+    if (growsUpwardRef.current) {
+      const { x, bottomY } = windowPosRef.current;
+      const newY = Math.max(0, bottomY - clampedHeight);
+      void invoke("set_window_frame", {
+        x,
+        y: newY,
+        width: OVERLAY_WIDTH,
+        height: clampedHeight,
+      });
+      return;
+    }
+
+    void getCurrentWindow().setSize(
+      new LogicalSize(OVERLAY_WIDTH, clampedHeight),
+    );
+  }, []);
+
   /**
    * Reset the high-water mark when streaming finishes so the window can
    * shrink back to its natural content height on the next resize event.
@@ -837,6 +869,27 @@ function App() {
       maxHeightRef.current = 0;
     }
   }, [isGenerating]);
+
+  useEffect(() => {
+    if (overlayState !== "visible") {
+      return;
+    }
+
+    if (isShellModalOpen) {
+      resizeOverlayWindow(MODAL_WINDOW_HEIGHT);
+      return;
+    }
+
+    const container = morphingContainerNodeRef.current;
+    if (!container) {
+      return;
+    }
+
+    const targetHeight =
+      Math.ceil(container.getBoundingClientRect().height) +
+      CONTAINER_VERTICAL_PADDING;
+    resizeOverlayWindow(Math.min(MAX_CHAT_WINDOW_HEIGHT, targetHeight));
+  }, [isShellModalOpen, overlayState, resizeOverlayWindow]);
 
   /**
    * Replays the entrance sequence by transitioning the overlay to the visible state.
@@ -962,8 +1015,14 @@ function App() {
     const wasChatMode = previousIsChatModeRef.current;
     previousIsChatModeRef.current = isChatMode;
 
+    if (heightMorphResetTimerRef.current !== null) {
+      window.clearTimeout(heightMorphResetTimerRef.current);
+      heightMorphResetTimerRef.current = null;
+    }
+
     if (!container) return;
     if (!growsUpward || isHistoryOpen || !isChatMode || wasChatMode) {
+      heightMorphActiveRef.current = false;
       return;
     }
 
@@ -979,10 +1038,26 @@ function App() {
     const frameId = requestAnimationFrame(() => {
       // 0.4s and slightly softer cubic bezier specifically for upward morph
       container.style.transition = "height 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)";
-      container.style.height = "600px";
+      container.style.height = `${MAX_CHAT_CONTAINER_HEIGHT}px`;
     });
+    heightMorphActiveRef.current = true;
+    heightMorphResetTimerRef.current = window.setTimeout(() => {
+      if (morphingContainerNodeRef.current !== container) {
+        return;
+      }
+      heightMorphActiveRef.current = false;
+      container.style.height = "";
+      container.style.transition =
+        "height 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-height 0.25s cubic-bezier(0.16, 1, 0.3, 1)";
+    }, 420);
 
-    return () => cancelAnimationFrame(frameId);
+    return () => {
+      cancelAnimationFrame(frameId);
+      if (heightMorphResetTimerRef.current !== null) {
+        window.clearTimeout(heightMorphResetTimerRef.current);
+        heightMorphResetTimerRef.current = null;
+      }
+    };
     /* v8 ignore stop */
   }, [growsUpward, isChatMode, isHistoryOpen]);
 
@@ -1007,6 +1082,7 @@ function App() {
       const h = container.offsetHeight;
       // offsetHeight might read 0 if hidden, so default to collapsed
       prevHeightRef.current = h > 0 ? h : COLLAPSED_WINDOW_HEIGHT;
+      heightMorphActiveRef.current = false;
       container.style.transition =
         "min-height 0.25s cubic-bezier(0.16, 1, 0.3, 1)";
       container.style.height = "";
@@ -1017,6 +1093,9 @@ function App() {
     if (!isHistoryOpen) {
       container.style.transition =
         "min-height 0.25s cubic-bezier(0.16, 1, 0.3, 1)";
+      if (!heightMorphActiveRef.current) {
+        container.style.height = "";
+      }
       container.style.minHeight = "";
       return;
     }
@@ -1546,7 +1625,6 @@ function App() {
                 "Use /provider ollama, /provider openai <model>, /provider google <model>, /provider anthropic <model>, or /provider xai <model>.",
               );
             }
-
 
             const providerDefaults: Record<string, string> = {
               ollama: "gemma4:e2b",
@@ -2326,94 +2404,103 @@ function App() {
    * Synchronizes the React animation state with Tauri-driven overlay visibility
    * requests emitted from the Rust backend.
    */
-    const isInitialized = useRef(false);
+  const isInitialized = useRef(false);
 
-    useEffect(() => {
-      if (isInitialized.current) return;
-      isInitialized.current = true;
+  useEffect(() => {
+    if (isInitialized.current) return;
+    isInitialized.current = true;
 
-      let unlistenVisibility: (() => void) | undefined;
-      let unlistenOnboarding: (() => void) | undefined;
-      let unlistenSettings: (() => void) | undefined;
-      let unlistenHelp: (() => void) | undefined;
-      let unlistenThemeChanged: (() => void) | undefined;
-      let unlistenSiriPending: (() => void) | undefined;
+    let unlistenVisibility: (() => void) | undefined;
+    let unlistenOnboarding: (() => void) | undefined;
+    let unlistenSettings: (() => void) | undefined;
+    let unlistenHelp: (() => void) | undefined;
+    let unlistenThemeChanged: (() => void) | undefined;
+    let unlistenSiriPending: (() => void) | undefined;
 
-      const attachListeners = async () => {
-        try {
-          void invoke("log_to_terminal", { msg: "Starting listener attachment" });
-          unlistenVisibility = await listen<OverlayVisibilityPayload>(
-            OVERLAY_VISIBILITY_EVENT,
+    const attachListeners = async () => {
+      try {
+        void invoke("log_to_terminal", { msg: "Starting listener attachment" });
+        unlistenVisibility = await listen<OverlayVisibilityPayload>(
+          OVERLAY_VISIBILITY_EVENT,
+          ({ payload }) => {
+            if (payload.state === "show") {
+              replayEntranceAnimation(
+                payload.selected_text ?? null,
+                payload.window_x ?? null,
+                payload.window_y ?? null,
+                payload.screen_bottom_y ?? null,
+              );
+            } else if (payload.state === "hide-request") {
+              requestHideOverlay();
+            }
+          },
+        );
+
+        void invoke("log_to_terminal", { msg: "Visibility listener attached" });
+
+        const results = await Promise.all([
+          listen<string | { stage: OnboardingStage }>(
+            ONBOARDING_EVENT,
             ({ payload }) => {
-              if (payload.state === "show") {
-                replayEntranceAnimation(
-                  payload.selected_text ?? null,
-                  payload.window_x ?? null,
-                  payload.window_y ?? null,
-                  payload.screen_bottom_y ?? null,
-                );
-              } else if (payload.state === "hide-request") {
-                requestHideOverlay();
-              }
+              const stage =
+                typeof payload === "string" ? payload : payload.stage;
+              setOnboardingStage(stage as OnboardingStage);
             },
-          );
+          ),
+          listen("open-settings", () => setIsSettingsOpen(true)),
+          listen("open-help", () => setIsHelpOpen(true)),
+          listen<string>(THEME_CHANGE_EVENT, ({ payload }) => {
+            applyThemeToDocument(payload);
+            void refreshSettings().catch(() => undefined);
+          }),
+          listen(SIRI_PENDING_EVENT, () => {
+            void drainPendingSiriRequests().catch(() => undefined);
+          }),
+        ]);
 
-          void invoke("log_to_terminal", { msg: "Visibility listener attached" });
+        unlistenOnboarding = results[0];
+        unlistenSettings = results[1];
+        unlistenHelp = results[2];
+        unlistenThemeChanged = results[3];
+        unlistenSiriPending = results[4];
 
-          const results = await Promise.all([
-            listen<string | { stage: OnboardingStage }>(
-              ONBOARDING_EVENT,
-              ({ payload }) => {
-                const stage = typeof payload === "string" ? payload : payload.stage;
-                setOnboardingStage(stage as OnboardingStage);
-              },
-            ),
-            listen("open-settings", () => setIsSettingsOpen(true)),
-            listen("open-help", () => setIsHelpOpen(true)),
-            listen<string>(THEME_CHANGE_EVENT, ({ payload }) => {
-              applyThemeToDocument(payload);
-              void refreshSettings().catch(() => undefined);
-            }),
-            listen(SIRI_PENDING_EVENT, () => {
-              void drainPendingSiriRequests().catch(() => undefined);
-            }),
-          ]);
+        void invoke("log_to_terminal", {
+          msg: "All listeners attached, notifying ready",
+        });
 
-          unlistenOnboarding = results[0];
-          unlistenSettings = results[1];
-          unlistenHelp = results[2];
-          unlistenThemeChanged = results[3];
-          unlistenSiriPending = results[4];
-
-          void invoke("log_to_terminal", { msg: "All listeners attached, notifying ready" });
-
-          await invoke("notify_frontend_ready").catch((err) => {
-            console.error("Failed to notify readiness:", err);
-            void invoke("log_to_terminal", { msg: `Notify ready failed: ${String(err)}` });
+        await invoke("notify_frontend_ready").catch((err) => {
+          console.error("Failed to notify readiness:", err);
+          void invoke("log_to_terminal", {
+            msg: `Notify ready failed: ${String(err)}`,
           });
-          
-          void invoke("log_to_terminal", { msg: "Frontend ready notification sent" });
-          
-          void refreshSettings().catch(() => undefined);
-          void drainPendingSiriRequests().catch(() => undefined);
-        } catch (error) {
-          console.error("Setup error:", error);
-          void invoke("log_to_terminal", { msg: `Setup error: ${String(error)}` });
-          void invoke("notify_frontend_ready").catch(() => undefined);
-          setOverlayState("visible"); // Last resort
-        }
-      };
+        });
 
-      void attachListeners();
-      return () => {
-        unlistenVisibility?.();
-        unlistenOnboarding?.();
-        unlistenSettings?.();
-        unlistenHelp?.();
-        unlistenThemeChanged?.();
-        unlistenSiriPending?.();
-      };
-    }, []);
+        void invoke("log_to_terminal", {
+          msg: "Frontend ready notification sent",
+        });
+
+        void refreshSettings().catch(() => undefined);
+        void drainPendingSiriRequests().catch(() => undefined);
+      } catch (error) {
+        console.error("Setup error:", error);
+        void invoke("log_to_terminal", {
+          msg: `Setup error: ${String(error)}`,
+        });
+        void invoke("notify_frontend_ready").catch(() => undefined);
+        setOverlayState("visible"); // Last resort
+      }
+    };
+
+    void attachListeners();
+    return () => {
+      unlistenVisibility?.();
+      unlistenOnboarding?.();
+      unlistenSettings?.();
+      unlistenHelp?.();
+      unlistenThemeChanged?.();
+      unlistenSiriPending?.();
+    };
+  }, []);
 
   /**
    * Combined close handler shared by the keyboard shortcut (Esc/Cmd+W)
@@ -2552,7 +2639,7 @@ function App() {
             {/* Relative wrapper — serves as the positioning context for the
                 chat-mode history dropdown so it can sit outside the morphing
                 container's overflow-hidden boundary without being clipped. */}
-            <div className="relative">
+            <div className="overlay-frame relative">
               {/* Morphing Container — flex column ensures the input bar
                   always sticks to the bottom without spring animation lag.
                   A CSS `transition: min-height` drives smooth window growth
@@ -2563,10 +2650,11 @@ function App() {
               <div
                 ref={setContainerRef}
                 style={{
+                  maxHeight: `${MAX_CHAT_CONTAINER_HEIGHT}px`,
                   transition:
                     "height 0.25s cubic-bezier(0.16, 1, 0.3, 1), min-height 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
                 }}
-                className={`morphing-container relative flex flex-col bg-surface-base backdrop-blur-3xl border border-surface-border max-h-[640px] overflow-hidden ${
+                className={`morphing-container relative z-10 flex flex-col bg-surface-base backdrop-blur-3xl border border-surface-border overflow-hidden ${
                   isChatMode
                     ? `rounded-[26px] shadow-chat`
                     : "rounded-[28px] shadow-bar"

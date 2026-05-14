@@ -16,6 +16,7 @@ const CALLBACK_PATH: &str = "/auth/callback";
 const DEFAULT_BRIDGE_URL: &str = "https://browser.ponsrischool.in";
 const DEFAULT_BRIDGE_TOKEN: &str = "comet-secure-v1";
 const LOOPBACK_TIMEOUT_SECONDS: u64 = 180;
+const BRIDGE_IDENTITY_CLIENT_ID: &str = "nexus-ai-native";
 
 const DEFAULT_IDENTITY_SCOPES: &[&str] = &["openid", "email", "profile"];
 const DEFAULT_WORKSPACE_SCOPES: &[&str] = &[
@@ -339,15 +340,28 @@ async fn start_bridge_sign_in(
         .port();
     let redirect_uri = format!("http://{}:{}{}", LOOPBACK_HOST, port, CALLBACK_PATH);
 
-    let mut start_url = reqwest::Url::parse(&format!(
-        "{}/api/auth/google",
-        bridge_base_url(app_settings)
-    ))
-    .map_err(|error| error.to_string())?;
-    start_url
-        .query_pairs_mut()
-        .append_pair("redirect_uri", &redirect_uri)
-        .append_pair("scopes", &requested_scopes.join(" "));
+    let start_path = match kind {
+        GoogleSessionKind::Identity => "/auth",
+        GoogleSessionKind::Workspace => "/api/auth/google",
+    };
+    let mut start_url =
+        reqwest::Url::parse(&format!("{}{}", bridge_base_url(app_settings), start_path))
+            .map_err(|error| error.to_string())?;
+
+    match kind {
+        GoogleSessionKind::Identity => {
+            start_url
+                .query_pairs_mut()
+                .append_pair("client_id", BRIDGE_IDENTITY_CLIENT_ID)
+                .append_pair("redirect_uri", &redirect_uri);
+        }
+        GoogleSessionKind::Workspace => {
+            start_url
+                .query_pairs_mut()
+                .append_pair("redirect_uri", &redirect_uri)
+                .append_pair("scopes", &requested_scopes.join(" "));
+        }
+    }
 
     if let Some(fb_config) = bridge_config.firebase_config.clone() {
         if fb_config.api_key.as_deref().unwrap_or("").trim().len() > 10 {
