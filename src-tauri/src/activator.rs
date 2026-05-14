@@ -1,292 +1,373 @@
-use std::collections::HashMap;
+//! Unified activation and visibility management for the Thuki overlay.
+//!
+//! This module coordinates the interaction between system-level input events
+//! and the application's visibility state. It provides a non-intrusive monitoring
+//! layer that detects specific user intent (via a primary activation trigger)
+//! to toggle the overlay.
+//!
+//! The implementation uses a high-performance background listener with its own
+//! event loop, ensuring zero latency impact on the main application or the
+//! host system's responsiveness.
+//!
+//! **macOS Permissions**: This module requires Accessibility permission to
+//! monitor system-wide modifier key transitions. It includes self-diagnostic
+//! checks and automated permission prompting.
+
+use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use cocoa::base::nil;
-use cocoa::foundation::NSPoint;
-use cocoa::foundation::NSSize;
-use cocoa::appkit::{NSEvent, NSApplication, NSWindow, NSWindowStyleMask, NSWindowLevel, NSBackingStoreType};
-use cocoa::appkit::NSEventSubtype;
-use cocoa::appkit::NSEventType;
+use core_foundation::base::TCFType;
+use core_foundation::boolean::CFBoolean;
+use core_foundation::dictionary::CFDictionary;
+use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop};
+use core_foundation::string::CFString;
+use core_graphics::event::{
+    CGEvent, CGEventFlags, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
+    CGEventType, CallbackResult, EventField,
+};
 
-use libc::c_void;
-use parking_lot::RwLock;
+/// Maximum temporal proximity between trigger events to qualify as an activation signal.
+const ACTIVATION_WINDOW: Duration = Duration::from_millis(400);
 
-const DOUBLE_TAP_THRESHOLD_MS: u64 = 400;
-const COOLDOWN_MS: u64 = 600;
-const CONTROL_KEY_CODE: u16 = 59;
+/// Minimum interval between successive activations to prevent accidental double-toggles.
+const ACTIVATION_COOLDOWN: Duration = Duration::from_millis(600);
 
-pub struct Activator {
-    tap_ref: Option<*mut c_void>,
-    last_control_press: Arc<RwLock<Option<Instant>>>,
-    last_activation: Arc<RwLock<Option<Instant>>>,
-    is_cooldown: Arc<AtomicBool>,
-    callback: Arc<dyn Fn() + Send + Sync>,
+/// Primary keycodes used for the activation sequence (macOS Control keys).
+const KC_PRIMARY_L: i64 = 0x3b;
+const KC_PRIMARY_R: i64 = 0x3e;
+
+/// Maximum number of attempts to establish the event tap while waiting for system permissions.
+const MAX_PERMISSION_ATTEMPTS: u32 = 6;
+
+/// Interval between permission check cycles.
+const PERMISSION_POLL_INTERVAL: Duration = Duration::from_secs(5);
+
+// ─── Native Framework Interop (macOS ApplicationServices) ──────────────────
+
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+    /// Returns true if the current process is trusted for Accessibility access.
+    fn AXIsProcessTrusted() -> bool;
+
+    /// Checks for Accessibility trust, optionally triggering the system-level privacy prompt.
+    fn AXIsProcessTrustedWithOptions(options: *const c_void) -> bool;
 }
 
-impl Activator {
-    pub fn new(callback: impl Fn() + Send + Sync + 'static) -> Self {
+/// Verifies and optionally requests Accessibility authorization from the OS.
+///
+/// Under development builds launched via terminal, macOS attributes this
+/// permission to the terminal emulator. In production `.app` bundles, the
+/// permission is correctly attributed to the application identity.
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn request_authorization(prompt: bool) -> bool {
+    unsafe {
+        if AXIsProcessTrusted() {
+            return true;
+        }
+
+        if prompt {
+            // "AXTrustedCheckOptionPrompt" key is the standard mechanism to
+            // trigger the macOS Privacy & Security dialog.
+            let key = CFString::new("AXTrustedCheckOptionPrompt");
+            let value = CFBoolean::true_value();
+            let dict = CFDictionary::from_CFType_pairs(&[(key.as_CFType(), value.as_CFType())]);
+            AXIsProcessTrustedWithOptions(dict.as_concrete_TypeRef() as *const c_void);
+        }
+
+        false
+    }
+}
+
+// ─── Activation Logic ────────────────────────────────────────────────────────
+
+/// Internal state tracking for the activation sequence.
+struct ActivationState {
+    /// Press timestamps still eligible to form a double-tap sequence.
+    recent_presses: Vec<Instant>,
+    /// Tracks the current physical state of the trigger key.
+    is_pressed: bool,
+    /// Timestamp of the last successful activation to enforce cooldown.
+    last_activation: Option<Instant>,
+}
+
+/// Evaluates a raw input event to determine if the activation sequence is complete.
+///
+/// Implements a state machine that filters for state transitions (press/release)
+/// and enforces temporal constraints defined by [`ACTIVATION_WINDOW`].
+fn evaluate_activation(state: &mut ActivationState, is_press: bool) -> bool {
+    if is_press {
+        if state.is_pressed {
+            return false;
+        }
+
+        state.is_pressed = true;
+        let now = Instant::now();
+
+        // Enforce cooldown period after a successful activation to prevent
+        // rapid tapping from triggering multiple toggles.
+        if let Some(last_act) = state.last_activation {
+            if now.duration_since(last_act) < ACTIVATION_COOLDOWN {
+                state.recent_presses.clear();
+                return false;
+            }
+        }
+
+        state
+            .recent_presses
+            .retain(|press| now.duration_since(*press) < ACTIVATION_WINDOW);
+        state.recent_presses.push(now);
+
+        if state.recent_presses.len() >= 2 {
+            let delta = state
+                .recent_presses
+                .first()
+                .map(|first| now.duration_since(*first))
+                .unwrap_or_default();
+            state.recent_presses.clear();
+            state.last_activation = Some(now);
+            eprintln!("thuki: [activator] sequence complete (delta: {}ms)", delta.as_millis());
+            return true;
+        }
+    } else {
+        state.is_pressed = false;
+    }
+
+    false
+}
+
+// ─── Public Interface ────────────────────────────────────────────────────────
+
+/// Orchestrates the lifecycle and threading of the background activation listener.
+pub struct OverlayActivator {
+    is_active: Arc<AtomicBool>,
+}
+
+impl OverlayActivator {
+    /// Creates a new, inactive instance of the activator.
+    pub fn new() -> Self {
         Self {
-            tap_ref: None,
-            last_control_press: Arc::new(RwLock::new(None)),
-            last_activation: Arc::new(RwLock::new(None)),
-            is_cooldown: Arc::new(AtomicBool::new(false)),
-            callback: Arc::new(callback),
+            is_active: Arc::new(AtomicBool::new(false)),
         }
     }
 
-    pub fn start(&mut self) -> Result<(), String> {
-        unsafe {
-            let event_mask = (1 << 10) | (1 << 11);
-
-            let callback = Self::event_callback;
-            let user_data = Box::into_raw(Box::new(self as *const _ as *mut c_void));
-
-            let tap_ref = CGEventTap::new(
-                0,
-                event_mask,
-                callback,
-                user_data as *mut c_void,
-            );
-
-            match tap_ref {
-                Ok(tap) => {
-                    tap.set_enabled(true);
-                    self.tap_ref = Some(tap.get_tap_ref());
-                    self.start_cooldown_timer();
-                    Ok(())
-                }
-                Err(e) => Err(format!("Failed to create event tap: {}", e))
-            }
+    /// Spawns the background monitoring thread and initializes the event loop.
+    ///
+    /// The method handles initial authorization checks and enters a retry loop
+    /// if permissions are not yet available, allowing the user to interact
+    /// with system prompts without needing to restart the application.
+    ///
+    /// # Arguments
+    ///
+    /// * `on_activation` - A thread-safe closure executed whenever the activation
+    ///   sequence is detected.
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    pub fn start<F>(&self, on_activation: F)
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        if self.is_active.load(Ordering::SeqCst) {
+            return;
         }
-    }
+        self.is_active.store(true, Ordering::SeqCst);
 
-    pub fn stop(&mut self) {
-        if let Some(tap_ref) = self.tap_ref.take() {
-            unsafe {
-                CGEventTap::disable(tap_ref);
-            }
-        }
-    }
+        // Check authorization without prompting. The onboarding screen owns
+        // the responsibility of directing the user to System Settings when
+        // Accessibility is not yet granted.
+        request_authorization(false);
 
-    fn start_cooldown_timer(&self) {
-        let is_cooldown = Arc::clone(&self.is_cooldown);
-        let last_activation = Arc::clone(&self.last_activation);
+        let is_active = self.is_active.clone();
+        let on_activation = Arc::new(on_activation);
 
         std::thread::spawn(move || {
-            loop {
-                std::thread::sleep(Duration::from_millis(100));
-
-                if is_cooldown.load(Ordering::SeqCst) {
-                    if let Some(last) = *last_activation.read() {
-                        let elapsed = last.elapsed().as_millis() as u64;
-                        if elapsed >= COOLDOWN_MS {
-                            is_cooldown.store(false, Ordering::SeqCst);
-                        }
-                    }
-                }
-            }
+            run_loop_with_retry(is_active, on_activation);
         });
     }
+}
 
-    unsafe extern "C" fn event_callback(
-        proxy: CGEventTapProxy,
-        event_type: CGEventType,
-        event: Option<CGEvent>,
-        user_data: *mut c_void,
-    ) -> Option<CGEvent> {
-        if event_type == CGEventType::TapDisabledByTimeout ||
-           event_type == CGEventType::TapDisabledByUserInput {
-            return event;
+/// Reason the event tap run loop exited.
+enum TapExitReason {
+    /// Activator was intentionally stopped via [`OverlayActivator`]. Do not retry.
+    Deactivated,
+    /// CGEventTap::new failed (Accessibility permission not yet granted). Retry
+    /// after waiting for the user to grant permission.
+    CreationFailed,
+    /// The tap was created and the run loop ran, but macOS disabled the tap
+    /// (timeout or user-input disable) or the run loop exited for an unexpected
+    /// reason. Retry immediately — no permission change is needed.
+    TapDied,
+}
+
+/// Persistence layer that maintains the event loop through permission and
+/// tap-death cycles.
+///
+/// Two distinct failure modes are handled separately:
+/// - **Permission failure** (`CreationFailed`): tap could not be installed at
+///   all. Waits [`PERMISSION_POLL_INTERVAL`] between attempts, up to
+///   [`MAX_PERMISSION_ATTEMPTS`] total.
+/// - **Tap death** (`TapDied`): tap was running but macOS disabled it (e.g.
+///   `TapDisabledByTimeout`). Retries immediately with no attempt limit so the
+///   listener recovers as fast as possible.
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn run_loop_with_retry<F>(is_active: Arc<AtomicBool>, on_activation: Arc<F>)
+where
+    F: Fn() + Send + Sync + 'static,
+{
+    let mut permission_failures: u32 = 0;
+
+    loop {
+        if !is_active.load(Ordering::SeqCst) {
+            return;
         }
 
-        let user_data = &*(user_data as *const *const ActivatorState);
-        let state = &(*user_data).activator;
+        match try_initialize_tap(&is_active, &on_activation) {
+            TapExitReason::Deactivated => return,
 
-        if event_type == CGEventType::KeyDown {
-            if let Some(event) = event {
-                let key_code = event.get_int_value(CGEventField::KeyboardEventKeycode as i64);
-                if key_code == CONTROL_KEY_CODE as i64 {
-                    let now = Instant::now();
-                    let mut last_press = state.last_control_press.write();
+            TapExitReason::TapDied => {
+                // Tap was running then killed by macOS. Reinstall immediately.
+                eprintln!("thuki: [activator] tap died — reinstalling");
+                permission_failures = 0;
+            }
 
-                    if let Some(last) = *last_press {
-                        let elapsed = now.duration_since(last).as_millis() as u64;
-                        if elapsed <= DOUBLE_TAP_THRESHOLD_MS {
-                            if !state.is_cooldown.load(Ordering::SeqCst) {
-                                state.callback();
-                                *state.last_activation.write() = Some(now);
-                                state.is_cooldown.store(true, Ordering::SeqCst);
-                            }
-                            *last_press = None;
-                        } else {
-                            *last_press = Some(now);
-                        }
-                    } else {
-                        *last_press = Some(now);
-                    }
+            TapExitReason::CreationFailed => {
+                permission_failures += 1;
+                if permission_failures >= MAX_PERMISSION_ATTEMPTS {
+                    eprintln!(
+                        "thuki: [error] activation listener failed after \
+                         maximum retries; check system permissions."
+                    );
+                    return;
                 }
+                eprintln!(
+                    "thuki: [activator] tap creation failed \
+                     (attempt {permission_failures}/{MAX_PERMISSION_ATTEMPTS}); \
+                     retrying in {}s",
+                    PERMISSION_POLL_INTERVAL.as_secs()
+                );
+                std::thread::sleep(PERMISSION_POLL_INTERVAL);
             }
         }
-
-        event
     }
 }
 
-impl Drop for Activator {
-    fn drop(&mut self) {
-        self.stop();
-    }
-}
+/// Core initialization of the Mach event tap.
+///
+/// Returns the reason the run loop exited so the caller can decide whether
+/// to retry.
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn try_initialize_tap<F>(is_active: &Arc<AtomicBool>, on_activation: &Arc<F>) -> TapExitReason
+where
+    F: Fn() + Send + Sync + 'static,
+{
+    let state = Arc::new(Mutex::new(ActivationState {
+        recent_presses: Vec::with_capacity(2),
+        is_pressed: false,
+        last_activation: None,
+    }));
 
-struct ActivatorState {
-    activator: Arc<Activator>,
-}
+    let cb_active = is_active.clone();
+    let cb_on_activation = on_activation.clone();
+    let cb_state = state.clone();
 
-#[repr(C)]
-enum CGEventType {
-    Null = 0x0,
-    LeftMouseDown = 0x1,
-    LeftMouseUp = 0x2,
-    RightMouseDown = 0x3,
-    RightMouseUp = 0x4,
-    MouseMoved = 0x5,
-    LeftMouseDragged = 0x6,
-    RightMouseDragged = 0x7,
-    KeyDown = 0xa,
-    KeyUp = 0xb,
-    FlagsChanged = 0xc,
-    ScrollWheel = 0x22,
-    TabletPointer = 0x100,
-    TabletProximity = 0x101,
-    OtherMouseDown = 0x205,
-    OtherMouseUp = 0x206,
-    OtherMouseDragged = 0x207,
-    TapDisabledByTimeout = 0x16,
-    TapDisabledByUserInput = 0x17,
-}
+    // Create the event tap at HID level — the lowest level before events reach
+    // any application. This is what Karabiner-Elements, BetterTouchTool, and
+    // every other reliable system-wide key interceptor uses.
+    //
+    // Session-level taps (kCGSessionEventTap) sit above the window server
+    // routing layer and are subject to focus-based filtering introduced in
+    // macOS 15 Sequoia: they silently receive zero events from other apps.
+    // HID-level taps bypass this entirely and require only Accessibility
+    // permission, which Thuki already holds.
+    let tap_result = CGEventTap::new(
+        CGEventTapLocation::HID,
+        CGEventTapPlacement::HeadInsertEventTap,
+        // Use Default (active) tap, not ListenOnly. Active taps at HID level
+        // are not disabled by secure input mode (iTerm Secure Keyboard Entry,
+        // password fields, etc.). We still return CallbackResult::Keep so no
+        // events are blocked or modified. Requires Accessibility permission,
+        // which Thuki already holds.
+        CGEventTapOptions::Default,
+        // Only register for FlagsChanged. TapDisabledByTimeout and
+        // TapDisabledByUserInput have sentinel values (0xFFFFFFFE/0xFFFFFFFF)
+        // that overflow the bitmask and cannot be included here — macOS delivers
+        // them to the callback automatically without registration.
+        vec![CGEventType::FlagsChanged],
+        move |_proxy, event_type, event: &CGEvent| -> CallbackResult {
+            // macOS auto-disables event taps whose callback is too slow.
+            // Stop the run loop so the outer retry loop reinstalls the tap.
+            if matches!(
+                event_type,
+                CGEventType::TapDisabledByTimeout | CGEventType::TapDisabledByUserInput
+            ) {
+                eprintln!(
+                    "thuki: [activator] event tap disabled by macOS \
+                     ({event_type:?}) — stopping run loop for reinstall"
+                );
+                CFRunLoop::get_current().stop();
+                return CallbackResult::Keep;
+            }
 
-#[repr(C)]
-enum CGEventField {
-    KeyboardEventKeycode = 0x09,
-}
+            if !cb_active.load(Ordering::SeqCst) {
+                CFRunLoop::get_current().stop();
+                return CallbackResult::Keep;
+            }
 
-struct CGEvent {
-    event: *mut c_void,
-}
+            let keycode = event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE);
+            let flags = event.get_flags();
+            let is_control = flags.contains(CGEventFlags::CGEventFlagControl);
 
-impl CGEvent {
-    fn get_int_value(&self, field: i64) -> i64 {
-        unsafe {
-            CGEventGetIntegerValueField(self.event, field as u32)
+            // Detailed logging to diagnose why double-tap might fail on specific systems
+            if is_control || keycode == KC_PRIMARY_L || keycode == KC_PRIMARY_R {
+                let s = cb_state.lock().unwrap();
+                if s.is_pressed != is_control || keycode == KC_PRIMARY_L || keycode == KC_PRIMARY_R {
+                    eprintln!("thuki: [activator] keycode: {:#04x}, is_control: {}", keycode, is_control);
+                }
+            }
+
+            // Filter for primary triggers (Control keys)
+            if keycode != KC_PRIMARY_L && keycode != KC_PRIMARY_R {
+                return CallbackResult::Keep;
+            }
+
+            let mut s = cb_state.lock().unwrap();
+            if evaluate_activation(&mut s, is_control) {
+                cb_on_activation();
+            }
+
+            CallbackResult::Keep
+        },
+    );
+
+    match tap_result {
+        Ok(tap) => {
+            eprintln!("thuki: [activator] event tap created (HID level) — listening for double-tap Control");
+            unsafe {
+                let loop_source = tap
+                    .mach_port()
+                    .create_runloop_source(0)
+                    .expect("failed to create run loop source");
+
+                let run_loop = CFRunLoop::get_current();
+                run_loop.add_source(&loop_source, kCFRunLoopCommonModes);
+                tap.enable();
+
+                CFRunLoop::run_current();
+            }
+            eprintln!("thuki: [activator] event tap run loop exited");
+            // If still supposed to be active the run loop exited unexpectedly.
+            if is_active.load(Ordering::SeqCst) {
+                TapExitReason::TapDied
+            } else {
+                TapExitReason::Deactivated
+            }
         }
-    }
-}
-
-#[link(name = "CoreGraphics", kind = "dylib")]
-extern "C" {
-    fn CGEventTapCreate(
-        tap: CGEventTapLocation,
-        place: CGEventTapPlacement,
-        options: CGEventTapOptions,
-        events_of_interest: u64,
-        callback: CGEventTapCallBack,
-        user_info: *mut c_void,
-    ) -> *mut c_void;
-
-    fn CGEventGetIntegerValueField(event: *mut c_void, field: u32) -> i64;
-
-    fn CGEventSetIntegerValueField(event: *mut c_void, field: u32, value: i64);
-
-    fn CGEventTapEnable(tap: *mut c_void, enable: bool);
-}
-
-enum CGEventTapLocation {
-    Session = 1,
-}
-
-enum CGEventTapPlacement {
-    HeadInsert = 0,
-    TailAppend = 1,
-}
-
-enum CGEventTapOptions {
-    Default = 0,
-    ListenAndSupply = 1,
-}
-
-type CGEventTapCallBack = unsafe extern "C" fn(
-    proxy: CGEventTapProxy,
-    type_: CGEventType,
-    event: *mut c_void,
-    user_info: *mut c_void,
-) -> *mut c_void;
-
-enum CGEventTapProxy {
-    Local = 0,
-}
-
-struct CGEventTap;
-
-impl CGEventTap {
-    unsafe fn new(
-        _tap_location: u32,
-        events_of_interest: u64,
-        _callback: CGEventTapCallBack,
-        _user_info: *mut c_void,
-    ) -> Result<CGEventTapHandle, String> {
-        let tap = CGEventTapCreate(
-            CGEventTapLocation::Session as u32,
-            CGEventTapPlacement::HeadInsert as u32,
-            CGEventTapOptions::ListenAndSupply as u32,
-            events_of_interest,
-            _callback,
-            _user_info,
-        );
-
-        if tap.is_null() {
-            return Err("Failed to create event tap. Check Accessibility permissions.".to_string());
+        Err(()) => {
+            eprintln!(
+                "thuki: [activator] event tap creation FAILED; check Accessibility permission"
+            );
+            TapExitReason::CreationFailed
         }
-
-        Ok(CGEventTapHandle { tap })
-    }
-}
-
-struct CGEventTapHandle {
-    tap: *mut c_void,
-}
-
-impl CGEventTapHandle {
-    unsafe fn get_tap_ref(&self) -> *mut c_void {
-        self.tap
-    }
-
-    unsafe fn set_enabled(&self, enabled: bool) {
-        CGEventTapEnable(self.tap, enabled);
-    }
-
-    unsafe fn disable(&self) {
-        CGEventTapEnable(self.tap, false);
-    }
-}
-
-pub fn check_accessibility_permissions() -> bool {
-    unsafe {
-        let options = cocoa::appkit::NSAccessibility::AXIsProcessTrustedWithOptions as i64;
-        let options_ref = cocoa::base::nil as *const c_void;
-        let result = cocoa::appkit::NSPasteboard::generalPasteboard(nil);
-
-        use cocoa::appkit::NSAccessibility;
-        NSAccessibility::AXIsProcessTrustedWithOptions(options_ref)
-    }
-}
-
-pub fn request_accessibility_permissions() {
-    unsafe {
-        let options = cocoa::appkit::NSDictionary::dictionary(nil);
-        use cocoa::appkit::NSAccessibility;
-        let _ = NSAccessibility::AXIsProcessTrustedWithOptions(options);
     }
 }
 
@@ -295,12 +376,183 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_double_tap_detection() {
-        let mut activator = Activator::new(|| {
-            println!("Double-tap detected!");
-        });
+    fn new_activator_is_inactive() {
+        let activator = OverlayActivator::new();
+        assert!(!activator
+            .is_active
+            .load(std::sync::atomic::Ordering::SeqCst));
+    }
 
-        assert!(activator.start().is_ok() || true);
-        activator.stop();
+    #[test]
+    fn validates_activation_sequence() {
+        let mut state = ActivationState {
+            recent_presses: Vec::new(),
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        // First event
+        assert!(!evaluate_activation(&mut state, true));
+        evaluate_activation(&mut state, false);
+
+        // Sequence completion
+        assert!(evaluate_activation(&mut state, true));
+    }
+
+    #[test]
+    fn rejects_stale_sequence() {
+        let mut state = ActivationState {
+            recent_presses: Vec::new(),
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        evaluate_activation(&mut state, true);
+        evaluate_activation(&mut state, false);
+
+        // Simulate temporal drift beyond window
+        state.recent_presses = vec![Instant::now() - Duration::from_millis(500)];
+
+        assert!(!evaluate_activation(&mut state, true));
+    }
+
+    #[test]
+    fn cooldown_rejects_activation_within_window() {
+        let mut state = ActivationState {
+            recent_presses: Vec::new(),
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        // Complete first activation
+        evaluate_activation(&mut state, true);
+        evaluate_activation(&mut state, false);
+        assert!(evaluate_activation(&mut state, true));
+        evaluate_activation(&mut state, false);
+
+        // Try to activate again immediately — within 600ms cooldown
+        evaluate_activation(&mut state, true);
+        evaluate_activation(&mut state, false);
+        // This should be rejected by cooldown
+        assert!(!evaluate_activation(&mut state, true));
+    }
+
+    #[test]
+    fn cooldown_allows_activation_after_expiry() {
+        let mut state = ActivationState {
+            recent_presses: Vec::new(),
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        // Complete first activation
+        evaluate_activation(&mut state, true);
+        evaluate_activation(&mut state, false);
+        assert!(evaluate_activation(&mut state, true));
+        evaluate_activation(&mut state, false);
+
+        // Simulate cooldown expiry
+        state.last_activation = Some(Instant::now() - Duration::from_millis(700));
+
+        // Should work now
+        evaluate_activation(&mut state, true);
+        evaluate_activation(&mut state, false);
+        assert!(evaluate_activation(&mut state, true));
+    }
+
+    #[test]
+    fn boundary_timing_at_exactly_400ms_is_rejected() {
+        let mut state = ActivationState {
+            recent_presses: vec![Instant::now() - Duration::from_millis(400)],
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        assert!(!evaluate_activation(&mut state, true));
+    }
+
+    #[test]
+    fn boundary_timing_at_399ms_is_accepted() {
+        let mut state = ActivationState {
+            recent_presses: vec![Instant::now() - Duration::from_millis(399)],
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        assert!(evaluate_activation(&mut state, true));
+    }
+
+    #[test]
+    fn first_tap_records_timestamp() {
+        let mut state = ActivationState {
+            recent_presses: Vec::new(),
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        assert!(!evaluate_activation(&mut state, true));
+        assert_eq!(state.recent_presses.len(), 1);
+    }
+
+    #[test]
+    fn state_resets_after_successful_activation() {
+        let mut state = ActivationState {
+            recent_presses: Vec::new(),
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        evaluate_activation(&mut state, true);
+        evaluate_activation(&mut state, false);
+        assert!(evaluate_activation(&mut state, true));
+
+        assert!(state.recent_presses.is_empty());
+        assert!(state.last_activation.is_some());
+    }
+
+    #[test]
+    fn repeated_press_without_release_is_ignored() {
+        let mut state = ActivationState {
+            recent_presses: Vec::new(),
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        evaluate_activation(&mut state, true);
+        assert!(!evaluate_activation(&mut state, true));
+    }
+
+    #[test]
+    fn release_without_press_does_nothing() {
+        let mut state = ActivationState {
+            recent_presses: Vec::new(),
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        assert!(!evaluate_activation(&mut state, false));
+        assert!(state.recent_presses.is_empty());
+    }
+
+    #[test]
+    fn cooldown_press_does_not_arm_next_activation() {
+        let mut state = ActivationState {
+            recent_presses: Vec::new(),
+            is_pressed: false,
+            last_activation: None,
+        };
+
+        evaluate_activation(&mut state, true);
+        evaluate_activation(&mut state, false);
+        assert!(evaluate_activation(&mut state, true));
+        evaluate_activation(&mut state, false);
+
+        assert!(!evaluate_activation(&mut state, true));
+        evaluate_activation(&mut state, false);
+        assert!(state.recent_presses.is_empty());
+
+        state.last_activation = Some(Instant::now() - Duration::from_millis(700));
+
+        assert!(!evaluate_activation(&mut state, true));
     }
 }

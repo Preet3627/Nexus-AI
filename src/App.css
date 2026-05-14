@@ -1,0 +1,410 @@
+@import "tailwindcss";
+@source "../node_modules/streamdown/dist";
+@import "streamdown/styles.css";
+
+@theme {
+  --font-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+
+  /* Brand palette — single source of truth for all color decisions */
+  --color-primary: #ff985f;
+  --color-secondary: #d46821;
+  --color-tertiary: #f2bd73;
+  --color-neutral: #101419;
+  --color-accent-cool: #5d93ff;
+
+  /* Surface tokens derived from the palette */
+  --color-surface-base: rgba(11, 16, 22, 0.74);
+  --color-surface-elevated: rgba(20, 27, 35, 0.54);
+  --color-surface-border: rgba(255, 255, 255, 0.09);
+  --color-surface-gradient-start: rgba(22, 28, 36, 0.82);
+  --color-surface-gradient-end: rgba(12, 17, 23, 0.72);
+  --color-glow-top: rgba(255, 152, 95, 0.18);
+  --color-glow-right: rgba(93, 147, 255, 0.16);
+  --color-overlay-top: rgba(255, 152, 95, 0.12);
+  --color-overlay-bottom: rgba(86, 140, 255, 0.08);
+  --color-user-bubble-start: #ff985f;
+  --color-user-bubble-end: #f17831;
+  --color-assistant-bubble: rgba(20, 26, 34, 0.7);
+  --color-selection-chip: rgba(255, 255, 255, 0.04);
+
+  /* Text tokens */
+  --color-text-primary: #f3f6fb;
+  --color-text-secondary: #9aa5b5;
+
+  /* Streamdown theme tokens (shadcn/ui convention) */
+  --color-muted: rgba(34, 41, 50, 0.58);
+  --color-muted-foreground: #9aa5b5;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-sidebar: rgba(15, 22, 30, 0.9);
+  --color-foreground: #f3f6fb;
+
+  /* Elevation — input bar mode (compact floating effect, Spotlight-inspired) */
+  --shadow-bar:
+    0 30px 80px -42px rgba(0, 0, 0, 0.78),
+    0 10px 30px -20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  /* Elevation — chat window mode (layered depth without excessive spread) */
+  --shadow-chat:
+    0 42px 120px -58px rgba(0, 0, 0, 0.82),
+    0 18px 38px -28px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+:root[data-theme="dark"] {
+  --color-primary: #ff985f;
+  --color-secondary: #d46821;
+  --color-tertiary: #f2bd73;
+  --color-accent-cool: #5d93ff;
+  --color-neutral: #101419;
+  --color-surface-base: rgba(11, 16, 22, 0.74);
+  --color-surface-elevated: rgba(20, 27, 35, 0.54);
+  --color-surface-border: rgba(255, 255, 255, 0.09);
+  --color-surface-gradient-start: rgba(22, 28, 36, 0.82);
+  --color-surface-gradient-end: rgba(12, 17, 23, 0.72);
+  --color-glow-top: rgba(255, 152, 95, 0.18);
+  --color-glow-right: rgba(93, 147, 255, 0.16);
+  --color-overlay-top: rgba(255, 152, 95, 0.12);
+  --color-overlay-bottom: rgba(86, 140, 255, 0.08);
+  --color-user-bubble-start: #ff985f;
+  --color-user-bubble-end: #f17831;
+  --color-assistant-bubble: rgba(20, 26, 34, 0.7);
+  --color-text-primary: #f3f6fb;
+  --color-text-secondary: #9aa5b5;
+  --color-selection-chip: rgba(255, 255, 255, 0.04);
+}
+
+:root[data-theme="light"] {
+  --color-primary: #ef6a2e;
+  --color-secondary: #bf4713;
+  --color-tertiary: #f4b26a;
+  --color-accent-cool: #4b7fff;
+  --color-neutral: #fff7ed;
+  --color-surface-base: rgba(255, 248, 240, 0.72);
+  --color-surface-elevated: rgba(255, 255, 255, 0.58);
+  --color-surface-border: rgba(110, 77, 52, 0.12);
+  --color-surface-gradient-start: rgba(255, 248, 240, 0.88);
+  --color-surface-gradient-end: rgba(244, 247, 252, 0.74);
+  --color-glow-top: rgba(255, 169, 109, 0.16);
+  --color-glow-right: rgba(110, 160, 255, 0.14);
+  --color-overlay-top: rgba(255, 187, 125, 0.16);
+  --color-overlay-bottom: rgba(112, 176, 255, 0.1);
+  --color-user-bubble-start: #ef6a2e;
+  --color-user-bubble-end: #d55620;
+  --color-assistant-bubble: rgba(255, 255, 255, 0.66);
+  --color-text-primary: #1b222d;
+  --color-text-secondary: #5f6b7d;
+  --color-selection-chip: rgba(20, 28, 36, 0.05);
+}
+
+:root[data-theme="graphite"] {
+  --color-primary: #9aa4b2;
+  --color-secondary: #6b7280;
+  --color-tertiary: #cbd5e1;
+  --color-accent-cool: #64748b;
+  --color-neutral: #0f172a;
+  --color-surface-base: rgba(12, 18, 28, 0.78);
+  --color-surface-elevated: rgba(24, 31, 42, 0.58);
+  --color-surface-border: rgba(255, 255, 255, 0.08);
+  --color-surface-gradient-start: rgba(24, 31, 42, 0.86);
+  --color-surface-gradient-end: rgba(12, 18, 28, 0.76);
+  --color-glow-top: rgba(148, 163, 184, 0.14);
+  --color-glow-right: rgba(100, 116, 139, 0.14);
+  --color-overlay-top: rgba(148, 163, 184, 0.09);
+  --color-overlay-bottom: rgba(99, 102, 241, 0.06);
+  --color-user-bubble-start: #8792a3;
+  --color-user-bubble-end: #67707d;
+  --color-assistant-bubble: rgba(24, 31, 42, 0.72);
+  --color-text-primary: #ecf2fb;
+  --color-text-secondary: #a8b3c2;
+  --color-selection-chip: rgba(255, 255, 255, 0.04);
+}
+
+:root[data-theme="aurora"] {
+  --color-primary: #64ffda;
+  --color-accent: #b388ff;
+  --color-accent-cool: #80cbc4;
+  --color-neutral: #e0f2f1;
+  --color-surface-base: rgba(15, 23, 42, 0.72);
+  --color-surface-elevated: rgba(30, 41, 59, 0.6);
+  --color-surface-border: rgba(100, 255, 218, 0.25);
+  --color-surface-gradient-start: rgba(15, 23, 42, 0.82);
+  --color-surface-gradient-end: rgba(10, 15, 30, 0.72);
+  --color-glow-top: rgba(100, 255, 218, 0.22);
+  --color-glow-right: rgba(123, 31, 162, 0.18);
+  --color-overlay-top: rgba(100, 255, 218, 0.15);
+  --color-overlay-bottom: rgba(123, 31, 162, 0.12);
+  --color-user-bubble-start: #00bfa5;
+  --color-user-bubble-end: #00897b;
+  --color-assistant-bubble: rgba(30, 41, 59, 0.65);
+  --color-text-primary: #e0f2f1;
+  --color-text-secondary: #80cbc4;
+  --color-selection-chip: rgba(100, 255, 218, 0.1);
+}
+
+:root[data-theme="dawn"] {
+  --color-primary: #ff8a65;
+  --color-accent: #ffd54f;
+  --color-accent-cool: #f06292;
+  --color-neutral: #fff3e0;
+  --color-surface-base: rgba(255, 244, 227, 0.74);
+  --color-surface-elevated: rgba(255, 250, 242, 0.6);
+  --color-surface-border: rgba(255, 138, 101, 0.25);
+  --color-surface-gradient-start: rgba(255, 244, 227, 0.88);
+  --color-surface-gradient-end: rgba(255, 230, 216, 0.72);
+  --color-glow-top: rgba(255, 138, 101, 0.22);
+  --color-glow-right: rgba(255, 213, 79, 0.18);
+  --color-overlay-top: rgba(255, 138, 101, 0.15);
+  --color-overlay-bottom: rgba(255, 213, 79, 0.12);
+  --color-user-bubble-start: #ff7043;
+  --color-user-bubble-end: #f4511e;
+  --color-assistant-bubble: rgba(255, 255, 255, 0.72);
+  --color-text-primary: #4e342e;
+  --color-text-secondary: #8d6e63;
+  --color-selection-chip: rgba(255, 138, 101, 0.1);
+}
+
+html,
+body {
+  background-color: transparent;
+  color: var(--color-text-primary);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+}
+
+.overlay-shell {
+  background:
+    radial-gradient(
+      ellipse 80% 55% at 50% 0%,
+      var(--color-overlay-top) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 70% 50% at 50% 100%,
+      var(--color-overlay-bottom) 0%,
+      transparent 62%
+    );
+}
+
+/* ─── Morphing Container ─── */
+.morphing-container {
+  will-change: transform;
+  transition:
+    box-shadow 0.5s cubic-bezier(0.12, 0.8, 0.2, 1.18),
+    border-radius 0.5s cubic-bezier(0.12, 0.8, 0.2, 1.18);
+  background:
+    radial-gradient(
+      ellipse 90% 120% at 10% 0%,
+      var(--color-glow-top) 0%,
+      transparent 52%
+    ),
+    radial-gradient(
+      ellipse 90% 110% at 100% 0%,
+      var(--color-glow-right) 0%,
+      transparent 50%
+    ),
+    linear-gradient(
+      180deg,
+      var(--color-surface-gradient-start) 0%,
+      var(--color-surface-gradient-end) 100%
+    );
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-top-color: rgba(255, 255, 255, 0.25);
+  border-left-color: rgba(255, 255, 255, 0.12);
+  border-right-color: rgba(255, 255, 255, 0.12);
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.morphing-container::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle glowing line at the very top edge — matches approved onboarding style */
+.morphing-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 180, 132, 0.42),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ─── Chat Bubble Styles ─── */
+.chat-bubble {
+  word-break: break-word;
+  position: relative;
+}
+
+/**
+ * User bubble — warm gradient from primary brand color to a deeper amber.
+ * Subtle inner glow at the top for depth perception.
+ */
+.chat-bubble-user {
+  background: linear-gradient(
+    135deg,
+    var(--color-user-bubble-start) 0%,
+    var(--color-user-bubble-end) 100%
+  );
+  box-shadow:
+    0 14px 24px -16px rgba(255, 141, 92, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+/**
+ * AI bubble — frosted glass surface with a subtle border for depth.
+ * Harmonizes with the warm ambient dark overlay backdrop.
+ */
+.chat-bubble-ai {
+  background: var(--color-assistant-bubble);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--color-surface-border);
+  border-top-color: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 16px 28px -24px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Stop Button Border Trace ───
+ * SVG border-trace using pathLength="100" so all dash math is in clean
+ * percentages. Three layered strokes staggered via animation-delay (NOT
+ * initial dashoffset — that causes different travel distances and speed
+ * drift). All three share the same keyframe and duration so they move
+ * in lockstep, with the delay creating a fixed spatial offset.
+ */
+.stop-btn-ring {
+  position: relative;
+}
+.stop-btn-ring > .stop-ring-svg {
+  position: absolute;
+  inset: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  pointer-events: none;
+  overflow: visible;
+}
+.stop-btn-ring > .stop-ring-svg rect {
+  fill: none;
+  stroke: #f87171;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+/* Head — bright leading segment, furthest along the path */
+.stop-trace-head {
+  stroke-dasharray: 15 85;
+  animation: trace-border 2s linear infinite;
+  animation-delay: -0.56s;
+}
+/* Mid — dimmer segment trailing the head */
+.stop-trace-mid {
+  stroke-dasharray: 12 88;
+  opacity: 0.4;
+  animation: trace-border 2s linear infinite;
+  animation-delay: -0.3s;
+}
+/* Tail — faintest segment, furthest behind */
+.stop-trace-tail {
+  stroke-dasharray: 10 90;
+  opacity: 0.12;
+  animation: trace-border 2s linear infinite;
+}
+@keyframes trace-border {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+/* ─── Chat Messages Scrollable Area ─── */
+.chat-messages-scroll {
+  scrollbar-gutter: stable;
+}
+
+/* ─── Code Block — Premium Brand Style ───
+ * Streamdown's utility classes (border-border, bg-background, bg-sidebar) don't
+ * resolve against our custom theme. Override every layer explicitly.
+ *
+ * Layout note: Streamdown positions the copy button via a sticky div with
+ * `-mt-10` to overlap it with the header row. This trick doesn't work reliably
+ * in Tauri's WebKit webview. We fix it by making `code-block` a positioning
+ * context (position: relative) and targeting the sticky wrapper with `:has()`
+ * to make it absolutely-positioned flush with the header row instead.
+ *
+ * Plain CSS outside @layer overrides Tailwind utility classes in @layer utilities.
+ */
+[data-streamdown="code-block"] {
+  position: relative; /* anchors the absolutely-repositioned actions wrapper */
+  background: color-mix(in srgb, var(--color-neutral) 82%, black 18%);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 18px 24px -24px rgba(0, 0, 0, 0.75);
+}
+
+/* Sticky wrapper Streamdown injects around code-block-actions.
+ * Override sticky → absolute so it sits at the top-right of the header row. */
+[data-streamdown="code-block"]
+  > div:has([data-streamdown="code-block-actions"]) {
+  position: absolute;
+  top: 8px; /* matches the outer p-2 padding so it aligns with the header */
+  right: 8px;
+  height: 32px; /* matches h-8 on the header */
+  margin: 0;
+  padding: 0;
+  pointer-events: auto;
+}
+
+[data-streamdown="code-block-header"] {
+  color: rgba(255, 180, 132, 0.65);
+  padding-left: 8px;
+}
+
+[data-streamdown="code-block-body"] {
+  background: transparent;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Code Block Copy Button ───
+ * Strip Streamdown's floating pill chrome — transparent ghost icon only.
+ * Plain CSS outside @layer overrides Tailwind utility classes in @layer utilities.
+ */
+[data-streamdown="code-block-actions"] {
+  background: transparent;
+  border: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+  gap: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+[data-streamdown="code-block-actions"] button {
+  color: rgba(240, 240, 242, 0.3);
+  background: transparent;
+  transition: color 150ms ease;
+}
+[data-streamdown="code-block-actions"] button:hover {
+  color: rgba(240, 240, 242, 0.65);
+  background: transparent;
+}

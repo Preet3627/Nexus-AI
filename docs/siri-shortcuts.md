@@ -1,6 +1,6 @@
 # Siri Shortcuts & Voice Commands
 
-Nexus-AI integrates deeply with macOS Siri and Shortcuts, providing powerful voice-controlled automation with Touch ID security.
+Nexus-AI exposes real App Intents on macOS 13+ so Siri and Shortcuts can invoke app actions directly.
 
 ## Overview
 
@@ -8,36 +8,41 @@ Using **App Intents** (macOS 13+), Nexus-AI provides:
 
 - Voice-activated commands via Siri
 - Shortcuts app integration
-- Background AI processing
-- Touch ID protected actions
-- System control capabilities
+- A live "Ask Nexus" shortcut that sends the spoken message into Nexus and returns the generated reply for Siri to speak
+- Quick launch, web search, file extraction, research-link, and volume actions
 
 ## Voice Commands
 
 ### AI Queries
-> "Ask Nexus to summarize my emails"  
-> "Tell Nexus to analyze this screenshot"  
-> "Nexus what meetings do I have today?"
 
-**Features:**
-- Background processing
-- Screenshot capture option
-- Priority levels (low/normal/high)
-- Response caching
+> "Hey Siri, ask Nexus to summarize my emails"  
+> "Hey Siri, ask Nexus to draft a reply to Sam"  
+> "Hey Siri, tell Nexus AI to explain this error"  
+> "Hey Siri, ask Nexus to play Hum Pyaar Karne Wale"
+
+**Behavior:**
+
+- Siri launches Nexus-AI if needed
+- The spoken text is sent into the normal Nexus chat flow
+- Nexus generates a response with the configured provider
+- Siri reads the generated response back
 
 ### System Control
 
 #### Volume
+
 > "Set volume to 50% with Nexus"  
 > "Mute with Nexus"  
 > "Increase volume with Nexus"
 
 #### Brightness
+
 > "Set brightness to 75% with Nexus"  
 > "Dim screen with Nexus"  
 > "Brighten with Nexus"
 
 #### Quick Actions
+
 > "Lock screen with Nexus"  
 > "Empty trash with Nexus"  
 > "Take screenshot with Nexus"
@@ -46,20 +51,21 @@ Using **App Intents** (macOS 13+), Nexus-AI provides:
 
 ### Available Intents
 
-| Intent | Description | Parameters |
-|--------|-------------|------------|
-| `AskNexusAdvancedIntent` | Query AI in background | `query`, `screenshot`, `priority` |
-| `OpenAppIntent` | Open any application | `appName` |
-| `ControlVolumeIntent` | Set/mute volume | `action`, `percentage` |
-| `ControlBrightnessIntent` | Adjust screen brightness | `action`, `percentage` |
-| `ReadFileIntent` | Read file contents | `filepath`, `maxLines` |
-| `ExecuteShellSecureIntent` | Run shell with Touch ID | `command`, `requireTouchID` |
-| `TakeScreenshotIntent` | Capture screen | `captureMode` |
-| `QuickActionIntent` | Common system actions | `action` |
+| Intent                    | Description                                 | Parameters          |
+| ------------------------- | ------------------------------------------- | ------------------- |
+| `AskNexusIntent`          | Send a message to Nexus and speak the reply | `message`           |
+| `PlaySongWithNexusIntent` | Play a song with Nexus                      | `song`, `provider?` |
+| `OpenNexusIntent`         | Launch Nexus-AI                             | none                |
+| `OpenCometIntent`         | Launch Comet-AI                             | none                |
+| `SearchWebIntent`         | Search the web                              | `query`             |
+| `ResearchWithCometIntent` | Open a research URL                         | `url`               |
+| `ExtractFileIntent`       | Prepare a file extraction request           | `path`              |
+| `SetOutputVolumeIntent`   | Adjust macOS output volume                  | `level`             |
 
 ## Siri Phrases
 
 ### Show/Activate
+
 ```
 "Show Nexus-AI"
 "Open Nexus-AI"
@@ -68,20 +74,35 @@ Using **App Intents** (macOS 13+), Nexus-AI provides:
 ```
 
 ### AI Queries
+
 ```
-"Ask Nexus to {query}"
-"Tell Nexus to {query}"
-"Query Nexus with {query}"
-"Nexus {query}"
+"Ask Nexus AI to {message}"
+"Tell Nexus AI to {message}"
+"Ask Nexus AI to play {song}"
 ```
 
+### Music Playback
+
+```
+"Ask Nexus AI to play {song}"
+"Play {song} with Nexus AI"
+```
+
+The playback provider comes from Nexus settings unless the shortcut explicitly supplies one:
+
+- `YouTube`: launches Comet-AI, opens a YouTube search, and attempts to auto-open the first video.
+- `Spotify`: opens Spotify search for the requested song.
+- `Apple Music`: opens Apple Music search for the requested song.
+
 ### Open Apps
+
 ```
 "Open {app name} with Nexus"
 "Launch {app name} with Nexus"
 ```
 
 ### Volume Control
+
 ```
 "Set volume to {n} percent with Nexus"
 "Mute with Nexus"
@@ -90,6 +111,7 @@ Using **App Intents** (macOS 13+), Nexus-AI provides:
 ```
 
 ### Brightness Control
+
 ```
 "Set brightness to {n} percent with Nexus"
 "Dim screen with Nexus"
@@ -97,6 +119,7 @@ Using **App Intents** (macOS 13+), Nexus-AI provides:
 ```
 
 ### Shell Commands (Secure)
+
 ```
 "Run {command} with Nexus"
 "Execute {command} securely with Nexus"
@@ -131,25 +154,15 @@ Nexus: Command executed (or blocked if dangerous)
 - **Biometric Fallback**: Passcode if biometrics unavailable
 - **Audit Logging**: All commands logged
 
-## Background Processing
+## Ask Nexus Flow
 
-Nexus-AI processes commands in the background:
+The `AskNexusIntent` uses a localhost bridge inside the app:
 
-```swift
-@available(macOS 13.0, *)
-struct AskNexusAdvancedIntent: AppIntent {
-    static var openAppWhenRun: Bool = false  // Runs in background
-    
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        // Process in background
-        NotificationCenter.default.post(name: .nexusAIQuery, ...)
-        
-        // Wait for response with timeout
-        let response = await waitForResponse(taskId: taskId)
-        return .result(value: response)
-    }
-}
-```
+1. Siri runs the App Intent with the spoken `message`
+2. The intent POSTs that message to Nexus on `127.0.0.1`
+3. The frontend fulfills it through the normal `ask()` chat path
+4. The assistant text is returned to the intent
+5. Siri speaks the generated response
 
 ## Shortcuts App Integration
 
@@ -163,20 +176,23 @@ struct AskNexusAdvancedIntent: AppIntent {
 ### Example Shortcuts
 
 #### Morning Briefing
+
 ```
 1. Get Current Weather
 2. Ask Nexus: "Summarize my calendar for today"
-3. Ask Nexus: "Any urgent emails?"
+3. Ask Nexus: "What should I focus on first?"
 4. Open App: Calendar
 ```
 
 #### Quick Status Check
+
 ```
 1. Ask Nexus: "System status report"
 2. Show Notification
 ```
 
 #### Screenshot Analysis
+
 ```
 1. Screenshot with Nexus
 2. Ask Nexus: "Analyze this screenshot"
@@ -186,6 +202,7 @@ struct AskNexusAdvancedIntent: AppIntent {
 ## System Control Examples
 
 ### Volume Control
+
 ```swift
 // Set to 50%
 Set volume to 50% with Nexus
@@ -198,6 +215,7 @@ Volume up with Nexus
 ```
 
 ### Brightness Control
+
 ```swift
 // Set to 75%
 Set brightness to 75% with Nexus
@@ -207,6 +225,7 @@ Dim screen with Nexus
 ```
 
 ### Quick Actions
+
 ```swift
 // Lock screen
 Lock screen with Nexus
@@ -239,6 +258,7 @@ Run echo "Hello" with Nexus (requireTouchID: false)
 ```
 
 ### Allowed Commands
+
 ```bash
 ls -la
 cat filename
@@ -250,6 +270,7 @@ top -l 1
 ```
 
 ### Blocked Commands
+
 ```bash
 rm -rf /        # Dangerous
 dd if=...       # Disk write
@@ -261,6 +282,7 @@ curl | sh       # Pipe to shell
 ## Advanced Features
 
 ### Priority Levels
+
 ```swift
 enum TaskPriority {
     case low      // Queued, lower priority
@@ -270,6 +292,7 @@ enum TaskPriority {
 ```
 
 ### Screenshot Capture Modes
+
 ```swift
 enum CaptureMode {
     case fullScreen  // Entire screen
@@ -281,21 +304,25 @@ enum CaptureMode {
 ## Troubleshooting
 
 ### Siri Not Recognizing
+
 1. Update to latest Nexus-AI
 2. Check System Settings → Siri
 3. Say "Show me what you can do"
 
 ### Intent Not Found
+
 1. Open Shortcuts app
 2. Search for Nexus-AI actions
 3. Add to your shortcut manually
 
 ### Touch ID Not Working
+
 1. System Settings → Touch ID
 2. Add fingerprint
 3. Enable "Use Touch ID for..."
 
 ### Command Blocked
+
 1. Command matches security pattern
 2. Try simpler command
 3. Use Shortcuts app for complex tasks

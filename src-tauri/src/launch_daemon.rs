@@ -35,9 +35,9 @@ pub struct LaunchDaemonManager {
 
 impl LaunchDaemonManager {
     pub fn new() -> Self {
-        let program_path = std::env::current_executable()
+        let program_path = std::env::current_exe()
             .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_default();
+            .unwrap_or_else(|_| std::env::args().next().unwrap_or_default());
 
         Self {
             config: LaunchDaemonConfig {
@@ -56,7 +56,10 @@ impl LaunchDaemonManager {
 
     pub fn get_user_plist_path(&self) -> PathBuf {
         dirs::home_dir()
-            .map(|h| h.join("Library/LaunchAgents").join(format!("{}.plist", self.config.label)))
+            .map(|h| {
+                h.join("Library/LaunchAgents")
+                    .join(format!("{}.plist", self.config.label))
+            })
             .unwrap_or_default()
     }
 
@@ -173,7 +176,8 @@ impl LaunchDaemonManager {
             ));
         }
 
-        format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+        format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -204,8 +208,16 @@ impl LaunchDaemonManager {
 </plist>"#,
             self.config.label,
             self.config.program_path,
-            if self.config.run_at_load { "true" } else { "false" },
-            if self.config.keep_alive { "true" } else { "false" },
+            if self.config.run_at_load {
+                "true"
+            } else {
+                "false"
+            },
+            if self.config.keep_alive {
+                "true"
+            } else {
+                "false"
+            },
             self.config.standard_out_path,
             self.config.standard_error_path,
             env_vars.trim_end()
@@ -221,9 +233,7 @@ pub struct DaemonStatus {
 }
 
 pub fn check_root_permissions() -> bool {
-    let output = Command::new("id")
-        .args(["-u"])
-        .output();
+    let output = Command::new("id").args(["-u"]).output();
 
     match output {
         Ok(o) => {
@@ -238,7 +248,7 @@ pub fn request_admin_install() -> Result<(), String> {
     let output = Command::new("osascript")
         .args([
             "-e",
-            r#"do shell script "echo Admin privileges required" with administrator privileges"#
+            r#"do shell script "echo Admin privileges required" with administrator privileges"#,
         ])
         .output()
         .map_err(|e| e.to_string())?;

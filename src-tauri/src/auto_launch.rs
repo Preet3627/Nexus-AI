@@ -20,19 +20,17 @@ impl Default for LaunchSettings {
 
 pub struct AutoLaunchManager {
     bundle_id: String,
-    app_name: String,
     app_path: String,
 }
 
 impl AutoLaunchManager {
     pub fn new(bundle_id: &str) -> Self {
-        let app_path = std::env::current_executable()
+        let app_path = std::env::current_exe()
             .map(|p: std::path::PathBuf| p.to_string_lossy().to_string())
-            .unwrap_or_default();
+            .unwrap_or_else(|_| std::env::args().next().unwrap_or_default());
 
         Self {
             bundle_id: bundle_id.to_string(),
-            app_name: bundle_id.to_string(),
             app_path,
         }
     }
@@ -65,12 +63,12 @@ impl AutoLaunchManager {
             .ok_or("Could not find home directory")?
             .join("Library/LaunchAgents");
 
-        std::fs::create_dir_all(&launch_agents_dir)
-            .map_err(|e| e.to_string())?;
+        std::fs::create_dir_all(&launch_agents_dir).map_err(|e| e.to_string())?;
 
         let plist_path = launch_agents_dir.join(format!("{}.plist", self.bundle_id));
 
-        let plist_content = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+        let plist_content = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -95,10 +93,11 @@ impl AutoLaunchManager {
     <true/>
 </dict>
 </plist>
-"#, self.bundle_id, self.app_path, self.bundle_id, self.bundle_id);
+"#,
+            self.bundle_id, self.app_path, self.bundle_id, self.bundle_id
+        );
 
-        std::fs::write(&plist_path, plist_content)
-            .map_err(|e| e.to_string())?;
+        std::fs::write(&plist_path, plist_content).map_err(|e| e.to_string())?;
 
         let output = Command::new("launchctl")
             .args(["load", &plist_path.to_string_lossy()])
@@ -125,16 +124,17 @@ impl AutoLaunchManager {
                 .args(["unload", &plist_path.to_string_lossy()])
                 .output();
 
-            std::fs::remove_file(&plist_path)
-                .map_err(|e| e.to_string())?;
+            std::fs::remove_file(&plist_path).map_err(|e| e.to_string())?;
         }
 
         Ok(())
     }
 
     pub fn get_launch_agent_path(&self) -> Option<std::path::PathBuf> {
-        dirs::home_dir()
-            .map(|h| h.join("Library/LaunchAgents").join(format!("{}.plist", self.bundle_id)))
+        dirs::home_dir().map(|h| {
+            h.join("Library/LaunchAgents")
+                .join(format!("{}.plist", self.bundle_id))
+        })
     }
 
     pub fn is_launch_agent_installed(&self) -> bool {
@@ -165,7 +165,7 @@ fn check_login_item() -> bool {
         let output = Command::new("osascript")
             .args([
                 "-e",
-                "tell application \"System Events\" to get the name of every login item"
+                "tell application \"System Events\" to get the name of every login item",
             ])
             .output();
 

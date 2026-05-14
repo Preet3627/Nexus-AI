@@ -1,8 +1,0 @@
-/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/debug/deps/objc2_core_graphics-7fef36627c86623b.d: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/generated/mod.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/generated/CGDirectDisplay.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/thread_safety.rs
-
-/Users/sandipkumarpatel/Developer/Projects/Nexus-AI/src-tauri/target/debug/deps/libobjc2_core_graphics-7fef36627c86623b.rmeta: /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/lib.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/generated/mod.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/generated/CGDirectDisplay.rs /Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/thread_safety.rs
-
-/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/lib.rs:
-/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/generated/mod.rs:
-/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/generated/CGDirectDisplay.rs:
-/Users/sandipkumarpatel/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/objc2-core-graphics-0.3.2/src/thread_safety.rs:

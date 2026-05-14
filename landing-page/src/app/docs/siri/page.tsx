@@ -1,102 +1,105 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Mic, ChevronRight, Copy, Check, ExternalLink, CheckCircle2, Zap } from 'lucide-react'
+import { useState } from "react";
+import {
+  Mic,
+  ChevronRight,
+  Copy,
+  Check,
+  ExternalLink,
+  CheckCircle2,
+  Zap,
+} from "lucide-react";
 
 const siriIntents = [
   {
-    name: 'AskNexusIntent',
-    description: 'Ask Nexus a question via Siri',
-    parameters: [{ name: 'query', type: 'String', required: true }],
+    name: "AskNexusIntent",
+    description: "Ask Nexus a question and let Siri speak the generated reply",
+    parameters: [{ name: "message", type: "String", required: true }],
     example: '"Hey Siri, ask Nexus to summarize my emails"',
-    category: 'Core',
+    category: "Core",
   },
   {
-    name: 'ToggleOverlayIntent',
-    description: 'Show or hide the overlay window',
-    parameters: [{ name: 'action', type: '"show" | "hide"', required: false }],
+    name: "OpenNexusIntent",
+    description: "Launch Nexus AI",
+    parameters: [],
     example: '"Hey Siri, open Nexus AI"',
-    category: 'Navigation',
+    category: "Navigation",
   },
   {
-    name: 'GetStatusIntent',
-    description: 'Get current status or recent activity',
-    parameters: [],
-    example: '"Hey Siri, what\'s Nexus doing?"',
-    category: 'Info',
+    name: "SearchWebIntent",
+    description: "Open a web search from Nexus AI",
+    parameters: [{ name: "query", type: "String", required: true }],
+    example: '"Hey Siri, look up App Intents using Nexus AI"',
+    category: "Search",
   },
   {
-    name: 'RunAutomationIntent',
-    description: 'Execute a saved automation by name',
-    parameters: [{ name: 'automationName', type: 'String', required: true }],
-    example: '"Hey Siri, run my morning routine"',
-    category: 'Automation',
+    name: "ResearchWithCometIntent",
+    description: "Open a research URL in Comet",
+    parameters: [{ name: "url", type: "String", required: true }],
+    example: '"Hey Siri, research https://developer.apple.com with Nexus AI"',
+    category: "Research",
   },
   {
-    name: 'SearchIntent',
-    description: 'Search through conversation history',
-    parameters: [{ name: 'query', type: 'String', required: true }],
-    example: '"Hey Siri, search Nexus for meeting notes"',
-    category: 'Search',
+    name: "ExtractFileIntent",
+    description: "Prepare a local file extraction request",
+    parameters: [{ name: "path", type: "String", required: true }],
+    example: '"Hey Siri, read /Users/me/notes.txt using Nexus AI"',
+    category: "Files",
   },
   {
-    name: 'CaptureScreenIntent',
-    description: 'Capture screen and analyze with AI',
-    parameters: [],
-    example: '"Hey Siri, analyze my screen with Nexus"',
-    category: 'Screen',
+    name: "SetOutputVolumeIntent",
+    description: "Adjust the macOS output volume",
+    parameters: [{ name: "level", type: "Int", required: true }],
+    example: '"Hey Siri, set Mac volume with Nexus AI"',
+    category: "System",
   },
-]
+];
 
 const siriShortcuts = [
   {
-    title: 'Quick Ask',
-    phrase: '"Ask Nexus"',
-    action: 'Opens overlay with voice input ready',
+    title: "Ask Nexus",
+    phrase: '"Hey Siri, ask Nexus to..."',
+    action: "Sends the spoken request into Nexus and Siri reads the reply",
     icon: Mic,
   },
   {
-    title: 'Summarize',
-    phrase: '"Summarize for Nexus"',
-    action: 'Opens clipboard content in overlay for summarization',
+    title: "Open Nexus",
+    phrase: '"Hey Siri, open Nexus AI"',
+    action: "Launches the app",
     icon: Mic,
   },
   {
-    title: 'Screen Analyze',
-    phrase: '"Analyze screen for Nexus"',
-    action: 'Captures screen and opens in overlay',
+    title: "Web Search",
+    phrase: '"Hey Siri, look up ... using Nexus AI"',
+    action: "Starts a browser search from the app shortcut",
     icon: Mic,
   },
   {
-    title: 'Morning Brief',
-    phrase: '"Nexus morning brief"',
-    action: 'Runs scheduled morning automation',
+    title: "Research Link",
+    phrase: '"Hey Siri, research ... with Nexus AI"',
+    action: "Opens a URL for research in Comet",
     icon: Mic,
   },
-]
+];
 
 const implementationCode = `import AppIntents
+import Foundation
 
 struct AskNexusIntent: AppIntent {
-    static var title: LocalizedStringResource = "Ask Nexus"
-    static var description = IntentDescription("Ask Nexus AI a question")
-    
-    @Parameter(title: "Question")
-    var query: String
-    
+    static let title: LocalizedStringResource = "Ask Nexus"
+    static let openAppWhenRun = true
+
+    @Parameter(title: "Message")
+    var message: String
+
     static var parameterSummary: some ParameterSummary {
-        Summary("Ask \(\\.$query)")
+        Summary("Ask Nexus to \\(.$message)")
     }
-    
-    func perform() async throws -> some IntentResult & ProvidesDialog {
-        // Send to overlay window
-        NotificationCenter.default.post(
-            name: .askNexus,
-            object: nil,
-            userInfo: ["query": query]
-        )
-        
-        return .result(dialog: "Opening Nexus with your question...")
+
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+        let reply = try await askNexusThroughBridge(message)
+        return .result(value: reply, dialog: IntentDialog(stringLiteral: reply))
     }
 }
 
@@ -105,46 +108,50 @@ struct NexusShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: AskNexusIntent(),
             phrases: [
-                "Ask \(\.$template) in \(.applicationName)",
-                "Ask Nexus \(\.$template)"
+                "Ask \\(.applicationName) to \\(.$message)",
+                "Tell \\(.applicationName) to \\(.$message)"
             ],
             shortTitle: "Ask Nexus",
-            systemImageName: "sparkles"
+            systemImageName: "message.and.waveform"
         )
     }
-}`
+}`;
 
 const setupSteps = [
   {
     step: 1,
-    title: 'Enable Siri Integration',
-    description: 'In Nexus settings, navigate to "Siri & Shortcuts" and enable Siri integration.',
+    title: "Run Nexus Once",
+    description:
+      "Launch Nexus-AI so macOS registers its App Intents and shortcuts.",
   },
   {
     step: 2,
-    title: 'Add to Siri',
-    description: 'Siri shortcuts are automatically registered when you first use them.',
+    title: "Open Shortcuts",
+    description:
+      "Search for Nexus-AI in the Shortcuts app and confirm the Ask Nexus action appears.",
   },
   {
     step: 3,
-    title: 'Customize Phrases',
-    description: 'Long-press a shortcut in the Shortcuts app to customize the trigger phrase.',
+    title: "Use a Voice Phrase",
+    description:
+      "Try “Hey Siri, ask Nexus to summarize my emails” or customize the phrase in Shortcuts.",
   },
   {
     step: 4,
-    title: 'Test',
-    description: 'Try "Hey Siri, ask Nexus [your question]" to verify everything works.',
+    title: "Get Spoken Replies",
+    description:
+      "Siri waits for Nexus to generate a reply, then reads that response back.",
   },
-]
+];
 
 export default function SiriPage() {
-  const [copied, setCopied] = useState<string | null>(null)
+  const [copied, setCopied] = useState<string | null>(null);
 
   const copyCode = (code: string, id: string) => {
-    navigator.clipboard.writeText(code)
-    setCopied(id)
-    setTimeout(() => setCopied(null), 2000)
-  }
+    navigator.clipboard.writeText(code);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   return (
     <div className="space-y-8 pb-16">
@@ -170,7 +177,9 @@ export default function SiriPage() {
                 </div>
                 <h3 className="font-semibold">{shortcut.title}</h3>
               </div>
-              <p className="text-sm text-purple-400 font-mono mb-2">{shortcut.phrase}</p>
+              <p className="text-sm text-purple-400 font-mono mb-2">
+                {shortcut.phrase}
+              </p>
               <p className="text-sm text-white/60">{shortcut.action}</p>
             </div>
           ))}
@@ -185,20 +194,25 @@ export default function SiriPage() {
             <div key={i} className="glass rounded-xl p-4">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="font-semibold text-purple-400">{intent.name}</h3>
+                  <h3 className="font-semibold text-purple-400">
+                    {intent.name}
+                  </h3>
                   <p className="text-sm text-white/60">{intent.description}</p>
                 </div>
                 <span className="px-2 py-1 rounded bg-white/10 text-xs text-white/60">
                   {intent.category}
                 </span>
               </div>
-              
+
               {intent.parameters.length > 0 && (
                 <div className="mb-3">
                   <p className="text-xs text-white/40 mb-1">Parameters:</p>
                   <div className="flex flex-wrap gap-2">
                     {intent.parameters.map((param, j) => (
-                      <code key={j} className="px-2 py-1 rounded bg-white/5 text-sm">
+                      <code
+                        key={j}
+                        className="px-2 py-1 rounded bg-white/5 text-sm"
+                      >
                         <span className="text-pink-400">{param.name}</span>
                         <span className="text-white/40">: </span>
                         <span className="text-green-400">{param.type}</span>
@@ -210,7 +224,7 @@ export default function SiriPage() {
                   </div>
                 </div>
               )}
-              
+
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-white/40">Example:</span>
                 <code className="text-purple-400">{intent.example}</code>
@@ -225,12 +239,14 @@ export default function SiriPage() {
         <h2 className="text-2xl font-bold mb-4">Implementation</h2>
         <div className="glass rounded-xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-            <span className="text-sm text-white/60 font-mono">SiriIntegration.swift</span>
+            <span className="text-sm text-white/60 font-mono">
+              SiriIntegration.swift
+            </span>
             <button
-              onClick={() => copyCode(implementationCode, 'siri-code')}
+              onClick={() => copyCode(implementationCode, "siri-code")}
               className="flex items-center gap-1 text-sm text-white/40 hover:text-white"
             >
-              {copied === 'siri-code' ? (
+              {copied === "siri-code" ? (
                 <>
                   <Check className="w-4 h-4" />
                   Copied
@@ -320,5 +336,5 @@ export default function SiriPage() {
         </a>
       </div>
     </div>
-  )
+  );
 }

@@ -4,11 +4,12 @@
   "version": "0.1.0",
   "identifier": "com.nexusai.macos",
   "build": {
-    "frontendDist": "../src/web"
+    "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Nexus-AI",
         "width": 600,
         "height": 700,
@@ -19,7 +20,7 @@
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
-        "visible": true,
+        "visible": false,
         "focus": true
       }
     ],

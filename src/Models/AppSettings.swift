@@ -1,103 +1,105 @@
 import Foundation
+import LocalAuthentication
+import SwiftUI
 
-public struct AppSettings: Codable {
-    public var security: SecuritySettings
-    public var appearance: AppearanceSettings
-    public var llm: LLMSettings
-    public var comet: CometSettings
+@MainActor
+final class AppSettings: ObservableObject {
+    @Published var query = ""
+    @Published var selectedProvider = "Ollama"
+    @Published var identityStatus = "Touch ID ready"
+    @Published var statusHeadline = "Native command deck online"
+    @Published var lastCommandResult = "Native actions can search the web, open apps, adjust volume, and verify Touch ID."
+    @Published var isMenuBarIconHidden = false
 
-    public struct SecuritySettings: Codable {
-        public var requireAuthOnLaunch: Bool
-        public var authTimeout: Int
-        public var storageBackend: StorageBackend
-        public var enableCloudSync: Bool
-        public var biometricType: BiometricType
+    let availableProviders = ["Ollama", "OpenAI", "Anthropic", "Google"]
+    let commandHints = [
+        "⌃⌃ overlay summon",
+        "/touchid confirm sensitive task",
+        "/shell run local automations",
+        "/web research in default browser"
+    ]
 
-        public enum StorageBackend: String, Codable {
-            case secureEnclave
-            case keychain
-        }
+    let quickActions: [QuickAction] = [
+        QuickAction(
+            title: "Search the web",
+            subtitle: "Open the default browser from the launcher.",
+            command: "/web raycast style translucent mac app",
+            symbol: "globe",
+            tint: Color(red: 1.0, green: 0.60, blue: 0.39)
+        ),
+        QuickAction(
+            title: "Run shell command",
+            subtitle: "Execute a local command and capture the output.",
+            command: "/shell uname -a",
+            symbol: "terminal",
+            tint: Color(red: 0.39, green: 0.58, blue: 1.0)
+        ),
+        QuickAction(
+            title: "Adjust volume",
+            subtitle: "Set the Mac output volume with a command.",
+            command: "/volume 35",
+            symbol: "speaker.wave.2.fill",
+            tint: Color(red: 0.45, green: 0.80, blue: 0.58)
+        ),
+        QuickAction(
+            title: "Hide menu bar icon",
+            subtitle: "Keep the app background-first like Raycast.",
+            command: "/menuicon hide",
+            symbol: "rectangle.compress.vertical",
+            tint: Color(red: 0.89, green: 0.67, blue: 0.31)
+        )
+    ]
 
-        public enum BiometricType: String, Codable {
-            case none
-            case touchID
-            case faceID
-        }
+    let presets: [CommandPreset] = [
+        CommandPreset(title: "Control twice to open", command: "⌃⌃"),
+        CommandPreset(title: "Search with /web", command: "/web native macOS launcher"),
+        CommandPreset(title: "Verify Touch ID", command: "/touchid Unlock Nexus AI"),
+    ]
 
-        public init(
-            requireAuthOnLaunch: Bool = true,
-            authTimeout: Int = 300,
-            storageBackend: StorageBackend = .secureEnclave,
-            enableCloudSync: Bool = false,
-            biometricType: BiometricType = .none
-        ) {
-            self.requireAuthOnLaunch = requireAuthOnLaunch
-            self.authTimeout = authTimeout
-            self.storageBackend = storageBackend
-            self.enableCloudSync = enableCloudSync
-            self.biometricType = biometricType
-        }
+    func apply(_ action: QuickAction) {
+        query = action.command
+        statusHeadline = action.title
+        lastCommandResult = action.subtitle
     }
 
-    public struct AppearanceSettings: Codable {
-        public var theme: Theme
-        public var fontSize: Int
-        public var showTimestamps: Bool
-
-        public enum Theme: String, Codable {
-            case system
-            case dark
-            case light
-        }
-
-        public init(
-            theme: Theme = .dark,
-            fontSize: Int = 14,
-            showTimestamps: Bool = true
-        ) {
-            self.theme = theme
-            self.fontSize = fontSize
-            self.showTimestamps = showTimestamps
-        }
+    func stage(_ preset: CommandPreset) {
+        query = preset.command
+        statusHeadline = preset.title
+        lastCommandResult = "Prepared command \(preset.command)"
     }
 
-    public struct LLMSettings: Codable {
-        public var activeProvider: String
-        public var streamResponses: Bool
+    func runCurrentQuery() {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            statusHeadline = "Type a command first"
+            return
+        }
 
-        public init(
-            activeProvider: String = "ollama",
-            streamResponses: Bool = true
-        ) {
-            self.activeProvider = activeProvider
-            self.streamResponses = streamResponses
+        statusHeadline = "Command staged"
+        lastCommandResult = "Ready to run with \(selectedProvider): \(trimmed)"
+    }
+
+    func verifyTouchID() async {
+        let context = LAContext()
+        var error: NSError?
+
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            identityStatus = error?.localizedDescription ?? "Biometric authentication is not available."
+            return
+        }
+
+        let reason = "Verify your identity before running protected Nexus AI actions."
+
+        do {
+            let success = try await context.evaluatePolicy(
+                .deviceOwnerAuthenticationWithBiometrics,
+                localizedReason: reason
+            )
+            identityStatus = success ? "Touch ID verified" : "Touch ID not verified"
+            statusHeadline = success ? "Identity confirmed" : "Identity check failed"
+        } catch {
+            identityStatus = error.localizedDescription
+            statusHeadline = "Touch ID unavailable"
         }
     }
-
-    public struct CometSettings: Codable {
-        public var autoLaunch: Bool
-        public var port: Int
-
-        public init(
-            autoLaunch: Bool = true,
-            port: Int = 3004
-        ) {
-            self.autoLaunch = autoLaunch
-            self.port = port
-        }
-    }
-
-    public init(
-        security: SecuritySettings = SecuritySettings(),
-        appearance: AppearanceSettings = AppearanceSettings(),
-        llm: LLMSettings = LLMSettings(),
-        comet: CometSettings = CometSettings()
-    ) {
-        self.security = security
-        self.appearance = appearance
-        self.llm = llm
-        self.comet = comet
-    }
-
-    public static let `default` = AppSettings()
 }

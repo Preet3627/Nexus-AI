@@ -1,6 +1,11 @@
-use crate::commands::{ChatMessage, ChatResponse};
+use crate::commands::ChatMessage;
 use serde::{Deserialize, Serialize};
 use tauri::command;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ChatResponse {
+    pub content: String,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LLMConfigExt {
@@ -22,21 +27,34 @@ impl Default for LLMConfigExt {
 }
 
 #[command]
-pub async fn chat(messages: Vec<ChatMessage>, config: Option<LLMConfigExt>) -> Result<ChatResponse, String> {
+pub async fn chat(
+    messages: Vec<ChatMessage>,
+    config: Option<LLMConfigExt>,
+) -> Result<ChatResponse, String> {
     let config = config.unwrap_or_default();
-    tracing::info!("Chat request with {} messages to {} provider", messages.len(), config.provider);
+    tracing::info!(
+        "Chat request with {} messages to {} provider",
+        messages.len(),
+        config.provider
+    );
 
     match config.provider.as_str() {
         "ollama" => ollama_chat(messages, &config).await,
         "openai" => openai_chat(messages, &config).await,
         "anthropic" => anthropic_chat(messages, &config).await,
         _ => Ok(ChatResponse {
-            content: format!("Unknown provider: {}. Supported: ollama, openai, anthropic", config.provider),
+            content: format!(
+                "Unknown provider: {}. Supported: ollama, openai, anthropic",
+                config.provider
+            ),
         }),
     }
 }
 
-async fn ollama_chat(messages: Vec<ChatMessage>, config: &LLMConfigExt) -> Result<ChatResponse, String> {
+async fn ollama_chat(
+    messages: Vec<ChatMessage>,
+    config: &LLMConfigExt,
+) -> Result<ChatResponse, String> {
     let url = format!("{}/api/chat", config.url);
 
     let body = serde_json::json!({
@@ -57,7 +75,10 @@ async fn ollama_chat(messages: Vec<ChatMessage>, config: &LLMConfigExt) -> Resul
         return Err(format!("Ollama returned error: {}", response.status()));
     }
 
-    let json: serde_json::Value = response.json().await.map_err(|e| format!("Failed to parse response: {}", e))?;
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
 
     let content = json["message"]["content"]
         .as_str()
@@ -67,10 +88,16 @@ async fn ollama_chat(messages: Vec<ChatMessage>, config: &LLMConfigExt) -> Resul
     Ok(ChatResponse { content })
 }
 
-async fn openai_chat(messages: Vec<ChatMessage>, config: &LLMConfigExt) -> Result<ChatResponse, String> {
+async fn openai_chat(
+    messages: Vec<ChatMessage>,
+    config: &LLMConfigExt,
+) -> Result<ChatResponse, String> {
     let url = format!("{}/chat/completions", config.url);
 
-    let api_key = config.api_key.as_ref().ok_or("OpenAI requires an API key")?;
+    let api_key = config
+        .api_key
+        .as_ref()
+        .ok_or("OpenAI requires an API key")?;
 
     let body = serde_json::json!({
         "model": config.model,
@@ -93,7 +120,10 @@ async fn openai_chat(messages: Vec<ChatMessage>, config: &LLMConfigExt) -> Resul
         return Err(format!("OpenAI error ({}): {}", status, text));
     }
 
-    let json: serde_json::Value = response.json().await.map_err(|e| format!("Failed to parse response: {}", e))?;
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
 
     let content = json["choices"][0]["message"]["content"]
         .as_str()
@@ -103,12 +133,21 @@ async fn openai_chat(messages: Vec<ChatMessage>, config: &LLMConfigExt) -> Resul
     Ok(ChatResponse { content })
 }
 
-async fn anthropic_chat(messages: Vec<ChatMessage>, config: &LLMConfigExt) -> Result<ChatResponse, String> {
+async fn anthropic_chat(
+    messages: Vec<ChatMessage>,
+    config: &LLMConfigExt,
+) -> Result<ChatResponse, String> {
     let url = format!("{}/messages", config.url);
 
-    let api_key = config.api_key.as_ref().ok_or("Anthropic requires an API key")?;
+    let api_key = config
+        .api_key
+        .as_ref()
+        .ok_or("Anthropic requires an API key")?;
 
-    let last_message = messages.last().map(|m| m.content.clone()).unwrap_or_default();
+    let last_message = messages
+        .last()
+        .map(|m| m.content.clone())
+        .unwrap_or_default();
 
     let body = serde_json::json!({
         "model": config.model,
@@ -133,7 +172,10 @@ async fn anthropic_chat(messages: Vec<ChatMessage>, config: &LLMConfigExt) -> Re
         return Err(format!("Anthropic error ({}): {}", status, text));
     }
 
-    let json: serde_json::Value = response.json().await.map_err(|e| format!("Failed to parse response: {}", e))?;
+    let json: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {}", e))?;
 
     let content = json["content"][0]["text"]
         .as_str()

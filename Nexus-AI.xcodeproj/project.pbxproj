@@ -1,0 +1,394 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0C4C52D8E10D1844EF9C659C /* AutomationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 109803B7F47704ED3503B28B /* AutomationModels.swift */; };
+		CA011724D0A490EAD64A4EC3 /* NexusApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA6223D41F047EFF399776E /* NexusApp.swift */; };
+		E70E52E4F169E665E3727426 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD818D59051C53C6BF67523 /* AppSettings.swift */; };
+		EF44A2BB5B4F422F0095293B /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1683E8B0E7F9276548CD3C05 /* AppModels.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		109803B7F47704ED3503B28B /* AutomationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutomationModels.swift; sourceTree = "<group>"; };
+		1683E8B0E7F9276548CD3C05 /* AppModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModels.swift; sourceTree = "<group>"; };
+		2DD818D59051C53C6BF67523 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		AFA6223D41F047EFF399776E /* NexusApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NexusApp.swift; sourceTree = "<group>"; };
+		B50FF917764C64CDC6766A02 /* Nexus-AI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Nexus-AI.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		24E77A4CF84665DDF9F75B87 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Chat;
+			sourceTree = "<group>";
+		};
+		264B57BF77A12EB9575591E5 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				24E77A4CF84665DDF9F75B87 /* Chat */,
+				A5C1FFEF173F3A384713F3A6 /* Onboarding */,
+				A0ED3C8CA1B6C0B1E41F40F8 /* Overlay */,
+				D91AF01F1C5572FD474F7F6B /* Settings */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		619E8FAA2F9B7C551293447B = {
+			isa = PBXGroup;
+			children = (
+				6967C6FC3E7D01FDDB32EB95 /* src */,
+				F2D42D05709561B71FC9AA77 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6967C6FC3E7D01FDDB32EB95 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				AB89E3E8FED7665D35FAB392 /* App */,
+				7F83BB123E7556DC941674CD /* Models */,
+				B03B100FEEA509310BFC4AD2 /* Resources */,
+				E0654439D1758FC77184DF46 /* Utils */,
+				264B57BF77A12EB9575591E5 /* Views */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
+		7F83BB123E7556DC941674CD /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				1683E8B0E7F9276548CD3C05 /* AppModels.swift */,
+				2DD818D59051C53C6BF67523 /* AppSettings.swift */,
+				109803B7F47704ED3503B28B /* AutomationModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A0ED3C8CA1B6C0B1E41F40F8 /* Overlay */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Overlay;
+			sourceTree = "<group>";
+		};
+		A5C1FFEF173F3A384713F3A6 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		AB89E3E8FED7665D35FAB392 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				AFA6223D41F047EFF399776E /* NexusApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		B03B100FEEA509310BFC4AD2 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		D91AF01F1C5572FD474F7F6B /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		E0654439D1758FC77184DF46 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		F2D42D05709561B71FC9AA77 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B50FF917764C64CDC6766A02 /* Nexus-AI.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		26370E058AD9DA95FE46D1BE /* Nexus-AI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 68ADFA9708F3B75A4CBD56C9 /* Build configuration list for PBXNativeTarget "Nexus-AI" */;
+			buildPhases = (
+				B5D834D059AAF036DF0301D8 /* Sources */,
+				1326CF8560A4AE31220F1FF9 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Nexus-AI";
+			packageProductDependencies = (
+			);
+			productName = "Nexus-AI";
+			productReference = B50FF917764C64CDC6766A02 /* Nexus-AI.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		7BAEA5C9D635FD128F2C2404 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					26370E058AD9DA95FE46D1BE = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = DB646BA3FAB17BD6674BADF5 /* Build configuration list for PBXProject "Nexus-AI" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 619E8FAA2F9B7C551293447B;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F2D42D05709561B71FC9AA77 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				26370E058AD9DA95FE46D1BE /* Nexus-AI */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1326CF8560A4AE31220F1FF9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B5D834D059AAF036DF0301D8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EF44A2BB5B4F422F0095293B /* AppModels.swift in Sources */,
+				E70E52E4F169E665E3727426 /* AppSettings.swift in Sources */,
+				0C4C52D8E10D1844EF9C659C /* AutomationModels.swift in Sources */,
+				CA011724D0A490EAD64A4EC3 /* NexusApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		6611345907196328937648DF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Nexus-AI.entitlements";
+				COMBINE_HIDPI_IMAGES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.nexusai.macos;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		91F4A896E47955286D62BE22 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "Nexus-AI.entitlements";
+				COMBINE_HIDPI_IMAGES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.nexusai.macos;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		C81CE1FC945D9DEE2B3C55CC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "Nexus-AI";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		F2FD1B9D76925BA85ECA915C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_KEY_LSUIElement = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "Nexus-AI";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		68ADFA9708F3B75A4CBD56C9 /* Build configuration list for PBXNativeTarget "Nexus-AI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				91F4A896E47955286D62BE22 /* Debug */,
+				6611345907196328937648DF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DB646BA3FAB17BD6674BADF5 /* Build configuration list for PBXProject "Nexus-AI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C81CE1FC945D9DEE2B3C55CC /* Debug */,
+				F2FD1B9D76925BA85ECA915C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 7BAEA5C9D635FD128F2C2404 /* Project object */;
+}
