@@ -8,8 +8,6 @@
 	<string>Nexus-AI</string>
 	<key>CFBundleExecutable</key>
 	<string>nexus-ai</string>
-	<key>CFBundleIconFile</key>
-	<string>icon.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.nexusai.macos</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -28,6 +26,8 @@
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.13</string>
+	<key>CFBundleIconFile</key>
+	<string>icon.icns</string>
 	<key>LSRequiresCarbon</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>
