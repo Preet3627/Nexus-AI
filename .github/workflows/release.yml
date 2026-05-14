@@ -60,18 +60,6 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Cache Rust
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
       - name: Cache XcodeGen
         id: xcodegen-cache
         uses: actions/cache@v4
@@ -84,9 +72,6 @@ jobs:
       - name: Install XcodeGen
         if: steps.xcodegen-cache.outputs.cache-hit != 'true'
         run: brew install xcodegen
-
-      - name: Generate Xcode project
-        run: npm run generate
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -150,9 +135,6 @@ jobs:
 
       - name: Install XcodeGen
         run: brew install xcodegen
-
-      - name: Generate project
-        run: npm run generate
 
       - name: Build universal binary
         uses: tauri-apps/tauri-action@v0
