@@ -234,18 +234,18 @@ export function useOllama(
 
       if (userMsg.imagePaths?.length) {
         try {
-          const base64Images = await invoke<string[]>(\"encode_images_as_base64_command\", {
+          const base64Images = await invoke<string[]>("encode_images_as_base64_command", {
             paths: userMsg.imagePaths,
           });
           userMsg.content = [
             ...base64Images.map((b64) => ({
-              type: \"image\",
+              type: "image",
               image: b64,
             })),
-            { type: \"text\", text: userMsg.content },
+            { type: "text", text: userMsg.content },
           ] as any;
         } catch (error) {
-          console.error(\"Failed to encode images for Vercel AI:\", error);
+          console.error("Failed to encode images for Vercel AI:", error);
         }
       }
 
@@ -272,7 +272,7 @@ export function useOllama(
         for await (const chunk of stream.fullStream) {
           chunkCount++;
           if (chunk.type === "text-delta") {
-            currentContent += chunk.textDelta;
+            currentContent += chunk.text;
             setMessages((prev) =>
               prev.map((message) =>
                 message.id === assistantId
@@ -280,8 +280,8 @@ export function useOllama(
                   : message,
               ),
             );
-          } else if (chunk.type === "reasoning") {
-            currentThinkingContent += chunk.textDelta;
+          } else if (chunk.type === "reasoning-delta") {
+            currentThinkingContent += chunk.text;
             setMessages((prev) =>
               prev.map((message) =>
                 message.id === assistantId

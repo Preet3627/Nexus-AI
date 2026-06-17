@@ -2559,22 +2559,22 @@ function App() {
       const isVisionCapable = (provider: string, model: string) => {
         const p = provider.toLowerCase();
         const m = model.toLowerCase();
-        if (p === \"ollama\") return true; // Assume ollama handles it or fails gracefully
-        if (p === \"openai\") return m.includes(\"gpt-4\") || m.includes(\"gpt-5\") || m.includes(\"o1\");
-        if (p === \"google\") return m.includes(\"gemini\");
-        if (p === \"anthropic\") return m.includes(\"claude-3\");
+        if (p === "ollama") return true; // Assume ollama handles it or fails gracefully
+        if (p === "openai") return m.includes("gpt-4") || m.includes("gpt-5") || m.includes("o1");
+        if (p === "google") return m.includes("gemini");
+        if (p === "anthropic") return m.includes("claude-3");
         return false;
       };
 
       if (
         attachedImages.length > 0 &&
-        !isVisionCapable(settings?.ai_provider || \"ollama\", settings?.ai_model || \"\")
+        !isVisionCapable(settings?.ai_provider || "ollama", settings?.ai_model || "")
       ) {
-        const provider = settings?.ai_provider || \"ollama\";
+        const provider = settings?.ai_provider || "ollama";
         const visionModels: Record<string, string> = {
-          openai: \"gpt-4o\",
-          google: \"gemini-1.5-flash\",
-          anthropic: \"claude-3-5-sonnet-latest\",
+          openai: "gpt-4o",
+          google: "gemini-1.5-flash",
+          anthropic: "claude-3-5-sonnet-latest",
         };
         const targetModel = visionModels[provider.toLowerCase()];
         if (targetModel) {
