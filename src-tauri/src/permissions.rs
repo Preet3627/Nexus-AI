@@ -27,6 +27,7 @@ pub fn needs_onboarding(accessibility: bool, screen_recording: bool) -> bool {
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
     fn AXIsProcessTrusted() -> bool;
+    fn AXIsProcessTrustedWithOptions(options: *const std::ffi::c_void) -> bool;
 }
 
 /// Returns whether the process currently has Accessibility permission.
@@ -34,6 +35,29 @@ extern "C" {
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub fn is_accessibility_granted() -> bool {
     unsafe { AXIsProcessTrusted() }
+}
+
+/// Requests Accessibility access by showing the native system prompt.
+/// Uses AXIsProcessTrustedWithOptions with kAXTrustedCheckOptionPrompt = true.
+/// Returns true immediately if already granted, false if the user needs to grant it manually.
+#[cfg(target_os = "macos")]
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn request_accessibility_access() -> bool {
+    unsafe {
+        if AXIsProcessTrusted() {
+            return true;
+        }
+
+        use core_foundation::base::TCFType;
+        use core_foundation::boolean::CFBoolean;
+        use core_foundation::dictionary::CFDictionary;
+        use core_foundation::string::CFString;
+
+        let key = CFString::new("AXTrustedCheckOptionPrompt");
+        let value = CFBoolean::true_value();
+        let dict = CFDictionary::from_CFType_pairs(&[(key.as_CFType(), value.as_CFType())]);
+        AXIsProcessTrustedWithOptions(dict.as_concrete_TypeRef() as *const std::ffi::c_void)
+    }
 }
 
 /// Returns whether the process currently has Screen Recording permission.
@@ -61,6 +85,15 @@ pub fn check_accessibility_permission() -> bool {
     is_accessibility_granted()
 }
 
+/// Requests Accessibility access by showing the native macOS prompt.
+/// Returns true if already granted, false if the system prompt was shown.
+#[tauri::command]
+#[cfg(target_os = "macos")]
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn request_accessibility_access_command() -> bool {
+    request_accessibility_access()
+}
+
 /// Opens System Settings to the Accessibility privacy pane so the user can
 /// enable the permission without encountering the native system popup.
 ///
@@ -70,14 +103,21 @@ pub fn check_accessibility_permission() -> bool {
 #[cfg(target_os = "macos")]
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub fn open_accessibility_settings() -> Result<(), String> {
-    std::process::Command::new("open")
-        .arg(
-            "x-apple.systempreferences:com.apple.preference.security\
-             ?Privacy_Accessibility",
-        )
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    // macOS 13+ (Ventura, Sonoma, Sequoia) uses a different pane identifier.
+    // Try the modern URL first, fall back to the legacy URL.
+    let urls = [
+        "x-apple.systempreferences:com.apple.settings.PrivacySecurity?Privacy_Accessibility",
+        "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+    ];
+
+    for url in &urls {
+        match std::process::Command::new("open").arg(url).spawn() {
+            Ok(_) => return Ok(()),
+            Err(_) => continue,
+        }
+    }
+
+    Err("Failed to open Accessibility settings — `open` command not found".to_string())
 }
 
 /// Returns whether Screen Recording permission has been granted.
@@ -94,14 +134,19 @@ pub fn check_screen_recording_permission() -> bool {
 #[cfg(target_os = "macos")]
 #[cfg_attr(coverage_nightly, coverage(off))]
 pub fn open_screen_recording_settings() -> Result<(), String> {
-    std::process::Command::new("open")
-        .arg(
-            "x-apple.systempreferences:com.apple.preference.security\
-             ?Privacy_ScreenCapture",
-        )
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    let urls = [
+        "x-apple.systempreferences:com.apple.settings.PrivacySecurity?Privacy_ScreenCapture",
+        "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+    ];
+
+    for url in &urls {
+        match std::process::Command::new("open").arg(url).spawn() {
+            Ok(_) => return Ok(()),
+            Err(_) => continue,
+        }
+    }
+
+    Err("Failed to open Screen Recording settings — `open` command not found".to_string())
 }
 
 /// Registers Thuki in the Screen Recording privacy pane and shows the macOS

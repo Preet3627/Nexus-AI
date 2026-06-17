@@ -5,6 +5,7 @@ import { buildModelMessages, buildSystemPrompt } from "../services/ai/messages";
 import {
   createLanguageModel,
   getActiveProvider,
+  getActiveModel,
 } from "../services/ai/provider";
 import { createProviderTools } from "../services/ai/providerTools";
 import { createDesktopTools } from "../services/ai/tools";
@@ -20,14 +21,16 @@ interface CompletedTurn {
 
 function missingProviderKeyMessage(provider: string): string {
   switch (provider) {
-    case "vercel-openai":
+    case "openai":
       return "OpenAI is selected, but no OpenAI API key is configured yet.";
-    case "vercel-google":
+    case "google":
       return "Google Gemini is selected, but no Google API key is configured yet.";
-    case "vercel-anthropic":
+    case "anthropic":
       return "Anthropic is selected, but no Anthropic API key is configured yet.";
-    case "vercel-xai":
+    case "xai":
       return "xAI is selected, but no xAI API key is configured yet.";
+    case "groq":
+      return "Groq is selected, but no Groq API key is configured yet.";
     default:
       return "The selected AI provider is not configured yet.";
   }
@@ -114,6 +117,9 @@ export function useOllama(
         }
 
         if (chunk.type === "Done") {
+          void invoke("log_to_terminal", {
+            msg: `[OLLAMA STREAM] Completed | Final Length: ${currentContent.length} chars`,
+          });
           const assistantMsg: Message = {
             id: assistantId,
             role: "assistant",
@@ -160,6 +166,12 @@ export function useOllama(
       };
 
       try {
+        const model = settings?.ai_model?.trim() || "llama3.2";
+        const baseUrl = settings?.ollama_base_url || "http://127.0.0.1:11434";
+        void invoke("log_to_terminal", {
+          msg: `[OLLAMA CALL] Model: ${model} | BaseURL: ${baseUrl} | Prompt: "${userMsg.content.substring(0, 100)}..."`,
+        });
+
         await invoke("ask_ollama", {
           message: userMsg.content,
           quotedText: userMsg.quotedText ?? null,
@@ -169,6 +181,7 @@ export function useOllama(
               : null,
           think: think ?? false,
           baseUrl: settings?.ollama_base_url ?? null,
+          model: settings?.ai_model?.trim() || null,
           onEvent: channel,
         });
       } catch (error) {
@@ -183,7 +196,7 @@ export function useOllama(
         throw error;
       }
     },
-    [onTurnComplete],
+    [onTurnComplete, settings],
   );
 
   const askViaVercel = useCallback(
@@ -195,7 +208,12 @@ export function useOllama(
       think?: boolean,
     ): Promise<void> => {
       const provider = getActiveProvider(settings);
+      const modelName = getActiveModel(settings);
       const model = createLanguageModel(settings);
+
+      void invoke("log_to_terminal", {
+        msg: `[VERCEL AI CALL] Provider: ${provider} | Model: ${modelName} | Prompt: "${userMsg.content.substring(0, 100)}..."`,
+      });
 
       if (!model) {
         setMessages((prev) =>
@@ -215,25 +233,20 @@ export function useOllama(
       }
 
       if (userMsg.imagePaths?.length) {
-        setMessages((prev) =>
-          prev.map((message) =>
-            message.id === assistantId
-              ? {
-                  ...message,
-                  content:
-                    "Vercel AI provider mode is wired for tools and chat, but desktop image attachments still use the Ollama path.",
-                  errorKind: "Other",
-                }
-              : message,
-          ),
-        );
-        setIsGenerating(false);
-        onError?.(
-          new Error(
-            "Vercel AI provider mode is wired for tools and chat, but desktop image attachments still use the Ollama path.",
-          ),
-        );
-        return;
+        try {
+          const base64Images = await invoke<string[]>(\"encode_images_as_base64_command\", {
+            paths: userMsg.imagePaths,
+          });
+          userMsg.content = [
+            ...base64Images.map((b64) => ({
+              type: \"image\",
+              image: b64,
+            })),
+            { type: \"text\", text: userMsg.content },
+          ] as any;
+        } catch (error) {
+          console.error(\"Failed to encode images for Vercel AI:\", error);
+        }
       }
 
       const abortController = new AbortController();
@@ -252,23 +265,42 @@ export function useOllama(
       });
 
       let currentContent = "";
+      let currentThinkingContent = "";
+      let chunkCount = 0;
 
       try {
-        for await (const chunk of stream.textStream) {
-          currentContent += chunk;
-          setMessages((prev) =>
-            prev.map((message) =>
-              message.id === assistantId
-                ? { ...message, content: currentContent }
-                : message,
-            ),
-          );
+        for await (const chunk of stream.fullStream) {
+          chunkCount++;
+          if (chunk.type === "text-delta") {
+            currentContent += chunk.textDelta;
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === assistantId
+                  ? { ...message, content: currentContent }
+                  : message,
+              ),
+            );
+          } else if (chunk.type === "reasoning") {
+            currentThinkingContent += chunk.textDelta;
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === assistantId
+                  ? { ...message, thinkingContent: currentThinkingContent }
+                  : message,
+              ),
+            );
+          }
         }
+
+        void invoke("log_to_terminal", {
+          msg: `[VERCEL AI STREAM] Completed | Chunks: ${chunkCount} | Final Length: ${currentContent.length} chars`,
+        });
 
         const assistantMsg: Message = {
           id: assistantId,
           role: "assistant",
-          content: currentContent || "Done.",
+          content: currentContent,
+          thinkingContent: currentThinkingContent || undefined,
         };
 
         setMessages((prev) =>

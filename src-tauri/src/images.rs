@@ -229,6 +229,13 @@ pub fn cleanup_orphaned_images_command(
     cleanup_orphaned_images(&base_dir, &referenced_paths)
 }
 
+/// Reads image files from disk and returns their base64-encoded contents.
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[cfg_attr(not(coverage), tauri::command)]
+pub fn encode_images_as_base64_command(paths: Vec<String>) -> Result<Vec<String>, String> {
+    encode_images_as_base64(&paths)
+}
+
 // ─── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

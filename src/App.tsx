@@ -10,7 +10,6 @@ import {
 import { listen } from "@tauri-apps/api/event";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { LogicalSize } from "@tauri-apps/api/dpi";
 import { useOllama } from "./hooks/useOllama";
 import { useAppSettings } from "./hooks/useAppSettings";
 import type { Message } from "./types/chat";
@@ -31,7 +30,7 @@ import type { AppSettingsPatch } from "./types/settings";
 import "./App.css";
 
 /** Fallback model name used before get_model_config resolves at startup. */
-const DEFAULT_MODEL_FALLBACK = "gemma4:e2b";
+const DEFAULT_MODEL_FALLBACK = "llama3.2";
 
 const OVERLAY_VISIBILITY_EVENT = "thuki://visibility";
 const ONBOARDING_EVENT = "thuki://onboarding";
@@ -61,6 +60,105 @@ const NATIVE_ACTION_COMMANDS = [
 ] as const;
 
 type NativeActionCommand = (typeof NATIVE_ACTION_COMMANDS)[number];
+
+interface InferredNativeAction {
+  command: NativeActionCommand;
+  strippedMessage: string;
+}
+
+function inferNativeAction(text: string): InferredNativeAction | null {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const openMatch = trimmed.match(
+    /^(?:open|launch|start)\s+(?:up\s+)?(.+)$/i,
+  );
+  if (openMatch) {
+    return {
+      command: "/open",
+      strippedMessage: openMatch[1].trim(),
+    };
+  }
+
+  const webMatch = trimmed.match(
+    /^(?:search\s+(?:the\s+)?web(?:\s+for)?|web\s+search|google)\s+(.+)$/i,
+  );
+  if (webMatch) {
+    return {
+      command: "/web",
+      strippedMessage: webMatch[1].trim(),
+    };
+  }
+
+  const playMatch = trimmed.match(/^play\s+(.+)$/i);
+  if (playMatch) {
+    return {
+      command: "/play",
+      strippedMessage: playMatch[1].trim(),
+    };
+  }
+
+  const volumeMatch = trimmed.match(
+    /^(?:set|change|turn)\s+(?:the\s+)?volume(?:\s+(?:to|down\s+to|up\s+to))?\s+(\d{1,3})\b/i,
+  );
+  if (volumeMatch) {
+    return {
+      command: "/volume",
+      strippedMessage: volumeMatch[1].trim(),
+    };
+  }
+
+  const providerMatch = trimmed.match(
+    /^(?:switch|set|use)\s+(?:(?:the\s+)?(?:ai\s+)?(?:provider|model)\s+)?(?:to\s+)?(ollama|openai|google|anthropic|xai|groq)\b(.*)$/i,
+  );
+  if (providerMatch) {
+    return {
+      command: "/provider",
+      strippedMessage: `${providerMatch[1].toLowerCase()} ${providerMatch[2].trim()}`.trim(),
+    };
+  }
+
+  const signOutMatch = trimmed.match(
+    /^(?:sign\s*out|log\s*out|disconnect)\s+(?:google|gmail|workspace)(.*)$/i,
+  );
+  if (signOutMatch) {
+    return {
+      command: "/signin",
+      strippedMessage: "signout",
+    };
+  }
+
+  const signInMatch = trimmed.match(
+    /^(?:sign\s*in|log\s*in|connect)\s+(?:with\s+)?google(?:\s+(workspace|gmail|drive))?(.*)$/i,
+  );
+  if (signInMatch) {
+    const scope = signInMatch[1]?.trim().toLowerCase();
+    if (scope === "workspace" || scope === "gmail" || scope === "drive") {
+      return {
+        command: "/signin",
+        strippedMessage: `workspace ${scope}`.trim(),
+      };
+    }
+    return {
+      command: "/signin",
+      strippedMessage: "google",
+    };
+  }
+
+  const shellMatch = trimmed.match(
+    /^(?:run|execute)\s+(?:this\s+)?(?:shell\s+command|command)\s*:?\s+(.+)$/i,
+  );
+  if (shellMatch) {
+    return {
+      command: "/shell",
+      strippedMessage: shellMatch[1].trim(),
+    };
+  }
+
+  return null;
+}
 
 function normalizeThemeName(theme?: string | null): string {
   switch (theme?.trim().toLowerCase()) {
@@ -469,8 +567,12 @@ const MAX_CHAT_CONTAINER_HEIGHT = 640;
 /** Max chat window height including the outer transparent padding. */
 const MAX_CHAT_WINDOW_HEIGHT =
   MAX_CHAT_CONTAINER_HEIGHT + CONTAINER_VERTICAL_PADDING;
-/** Taller window height used while fixed overlay modals are open. */
-const MODAL_WINDOW_HEIGHT = 860;
+/** Fallback height used before fixed overlay modals finish measuring. */
+const MODAL_WINDOW_HEIGHT = 980;
+/** Extra breathing room around fixed overlay modals inside the native window. */
+const MODAL_WINDOW_VERTICAL_PADDING = 88;
+/** Upper bound for settings/help windows on taller screens. */
+const MAX_MODAL_WINDOW_HEIGHT = 1120;
 
 /** Must match `OVERLAY_LOGICAL_HEIGHT_COLLAPSED` in `src-tauri/src/lib.rs`. */
 const COLLAPSED_WINDOW_HEIGHT = 80;
@@ -537,6 +639,12 @@ function App() {
     reset: resetHistory,
   } = useConversationHistory();
 
+  const {
+    settings,
+    updateSettings,
+    refresh: refreshSettings,
+  } = useAppSettings();
+
   /**
    * Persist a completed user/assistant turn to SQLite if the conversation
    * has been saved. Passed as `onTurnComplete` to `useOllama`.
@@ -547,15 +655,76 @@ function App() {
       assistantMsg: Parameters<typeof persistTurn>[1],
     ) => {
       await persistTurn(userMsg, assistantMsg);
-    },
-    [persistTurn],
-  );
 
-  const {
-    settings,
-    updateSettings,
-    refresh: refreshSettings,
-  } = useAppSettings();
+      const match = assistantMsg.content.match(/```json\s*(\{[\s\S]*?"action"[\s\S]*?\})\s*```/);
+      if (match) {
+        try {
+          const data = JSON.parse(match[1]);
+          if (data.action) {
+            // Hardcoded Risk Permission checks
+            let requiresVerification = false;
+            if (data.action === "volume" && !settings?.auto_volume) {
+              requiresVerification = true;
+            } else if (data.action === "open" && !settings?.auto_open) {
+              requiresVerification = true;
+            } else if (data.action === "play" && !settings?.auto_play) {
+              requiresVerification = true;
+            } else if (data.action === "web" && !settings?.auto_web) {
+              requiresVerification = true;
+            } else if (data.action === "shell") {
+              requiresVerification = true; // shell is High Risk, always verify
+            } else if (data.action === "warn" || data.action === "remember" || data.action === "switch_profile") {
+              requiresVerification = false; // safe operations
+            } else if (!["volume", "open", "play", "web", "shell", "warn", "remember", "switch_profile"].includes(data.action)) {
+              requiresVerification = true; // unrecognized command is High Risk, always verify
+            }
+
+            if (requiresVerification) {
+              const verification = await invoke<TouchIDVerification>("verify_touch_id", {
+                reason: `Authorize AI to execute ${data.action}`,
+              });
+              if (!verification.verified) {
+                console.warn("Touch ID failed/canceled. Action aborted.");
+                return;
+              }
+            }
+
+            switch (data.action) {
+              case "volume":
+                await invoke("set_output_volume", { level: Number(data.parameter) });
+                break;
+              case "open":
+                await invoke("open_target", { target: data.parameter });
+                break;
+              case "play":
+                await invoke("play_song", { query: data.parameter, provider: null });
+                break;
+              case "shell":
+                await invoke("run_shell_command", { command: data.parameter });
+                break;
+              case "web":
+                await invoke("search_web", { query: data.parameter });
+                break;
+              case "warn":
+                await invoke("show_native_alert", { title: "Security Warning", message: data.parameter });
+                break;
+              case "remember":
+                await invoke("add_user_memory", { content: data.parameter });
+                break;
+              case "switch_profile":
+                await invoke("switch_user_profile", { name: data.parameter });
+                break;
+              default:
+                console.warn("Unknown action", data.action);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse or execute AI native action:", e);
+        }
+      }
+    },
+    [persistTurn, settings],
+  );
 
   useEffect(() => {
     applyThemeToDocument(settings?.theme);
@@ -671,8 +840,10 @@ function App() {
   const observerRef = useRef<ResizeObserver | null>(null);
   const heightMorphActiveRef = useRef(false);
   const heightMorphResetTimerRef = useRef<number | null>(null);
+  const nativeRefreshOnNextResizeRef = useRef(false);
   const modalWindowOpenRef = useRef(isShellModalOpen);
   modalWindowOpenRef.current = isShellModalOpen;
+  const shellModalNodeRef = useRef<HTMLDivElement | null>(null);
 
   /**
    * Mirror of `growsUpward` as a ref so the ResizeObserver closure can read
@@ -826,9 +997,18 @@ function App() {
                   height: targetHeight,
                 });
               } else {
-                void getCurrentWindow().setSize(
-                  new LogicalSize(OVERLAY_WIDTH, targetHeight),
-                );
+                const shouldForceRefresh =
+                  nativeRefreshOnNextResizeRef.current &&
+                  targetHeight > COLLAPSED_WINDOW_HEIGHT;
+                if (shouldForceRefresh) {
+                  nativeRefreshOnNextResizeRef.current = false;
+                }
+
+                void invoke("set_window_size", {
+                  width: OVERLAY_WIDTH,
+                  height: targetHeight,
+                  forceRefresh: shouldForceRefresh || null,
+                });
               }
             }
           });
@@ -855,10 +1035,54 @@ function App() {
       return;
     }
 
-    void getCurrentWindow().setSize(
-      new LogicalSize(OVERLAY_WIDTH, clampedHeight),
-    );
+    const shouldForceRefresh =
+      nativeRefreshOnNextResizeRef.current &&
+      clampedHeight > COLLAPSED_WINDOW_HEIGHT;
+    if (shouldForceRefresh) {
+      nativeRefreshOnNextResizeRef.current = false;
+    }
+
+    void invoke("set_window_size", {
+      width: OVERLAY_WIDTH,
+      height: clampedHeight,
+      forceRefresh: shouldForceRefresh || null,
+    });
   }, []);
+
+  const setShellModalNode = useCallback((node: HTMLDivElement | null) => {
+    shellModalNodeRef.current = node;
+  }, []);
+
+  const resizeShellModalWindow = useCallback(() => {
+    const modalNode = shellModalNodeRef.current;
+    if (!modalNode) {
+      resizeOverlayWindow(MODAL_WINDOW_HEIGHT);
+      return;
+    }
+
+    const targetHeight =
+      Math.ceil(modalNode.getBoundingClientRect().height) +
+      MODAL_WINDOW_VERTICAL_PADDING;
+    resizeOverlayWindow(Math.min(MAX_MODAL_WINDOW_HEIGHT, targetHeight));
+  }, [resizeOverlayWindow]);
+
+  const syncChatWindowHeight = useCallback(() => {
+    if (overlayState !== "visible" || isShellModalOpen) {
+      return;
+    }
+
+    const container = morphingContainerNodeRef.current;
+    if (!container) {
+      return;
+    }
+
+    const targetHeight =
+      Math.max(
+        Math.ceil(container.getBoundingClientRect().height),
+        Math.ceil(container.scrollHeight),
+      ) + CONTAINER_VERTICAL_PADDING;
+    resizeOverlayWindow(Math.min(MAX_CHAT_WINDOW_HEIGHT, targetHeight));
+  }, [isShellModalOpen, overlayState, resizeOverlayWindow]);
 
   /**
    * Reset the high-water mark when streaming finishes so the window can
@@ -876,20 +1100,39 @@ function App() {
     }
 
     if (isShellModalOpen) {
+      return;
+    }
+
+    syncChatWindowHeight();
+  }, [isShellModalOpen, overlayState, syncChatWindowHeight]);
+
+  useLayoutEffect(() => {
+    if (!isShellModalOpen || overlayState !== "visible") {
+      return;
+    }
+
+    const modalNode = shellModalNodeRef.current;
+    if (!modalNode) {
       resizeOverlayWindow(MODAL_WINDOW_HEIGHT);
       return;
     }
 
-    const container = morphingContainerNodeRef.current;
-    if (!container) {
-      return;
-    }
+    const sync = () => {
+      requestAnimationFrame(() => {
+        resizeShellModalWindow();
+      });
+    };
 
-    const targetHeight =
-      Math.ceil(container.getBoundingClientRect().height) +
-      CONTAINER_VERTICAL_PADDING;
-    resizeOverlayWindow(Math.min(MAX_CHAT_WINDOW_HEIGHT, targetHeight));
-  }, [isShellModalOpen, overlayState, resizeOverlayWindow]);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(modalNode);
+    return () => observer.disconnect();
+  }, [
+    isShellModalOpen,
+    overlayState,
+    resizeOverlayWindow,
+    resizeShellModalWindow,
+  ]);
 
   /**
    * Replays the entrance sequence by transitioning the overlay to the visible state.
@@ -920,6 +1163,8 @@ function App() {
       setQuery(prefilledSelection);
       setSelectedContext(null);
       setIsHistoryOpen(false);
+      setIsSettingsOpen(false);
+      setIsHelpOpen(false);
       setAttachedImages((prev) => {
         for (const img of prev) URL.revokeObjectURL(img.blobUrl);
         return [];
@@ -950,6 +1195,8 @@ function App() {
     screenCaptureInputSnapshotRef.current = null;
     setSelectedContext(null);
     setPreviewImageUrl(null);
+    setIsSettingsOpen(false);
+    setIsHelpOpen(false);
     setAttachedImages((prev) => {
       for (const img of prev) URL.revokeObjectURL(img.blobUrl);
       return [];
@@ -1015,6 +1262,10 @@ function App() {
     const wasChatMode = previousIsChatModeRef.current;
     previousIsChatModeRef.current = isChatMode;
 
+    if (!wasChatMode && isChatMode && !growsUpward) {
+      nativeRefreshOnNextResizeRef.current = true;
+    }
+
     if (heightMorphResetTimerRef.current !== null) {
       window.clearTimeout(heightMorphResetTimerRef.current);
       heightMorphResetTimerRef.current = null;
@@ -1060,6 +1311,49 @@ function App() {
     };
     /* v8 ignore stop */
   }, [growsUpward, isChatMode, isHistoryOpen]);
+
+  useLayoutEffect(() => {
+    if (!isChatMode || isShellModalOpen || overlayState !== "visible") {
+      return;
+    }
+
+    /* v8 ignore start -- multi-pass scheduling depends on a real browser event loop */
+    const rafIds: number[] = [];
+    const timeoutIds: number[] = [];
+    const scheduleSync = () => {
+      syncChatWindowHeight();
+    };
+
+    scheduleSync();
+    rafIds.push(requestAnimationFrame(scheduleSync));
+    rafIds.push(
+      requestAnimationFrame(() => {
+        scheduleSync();
+        rafIds.push(requestAnimationFrame(scheduleSync));
+      }),
+    );
+    timeoutIds.push(window.setTimeout(scheduleSync, 60));
+    timeoutIds.push(window.setTimeout(scheduleSync, 180));
+
+    return () => {
+      for (const id of rafIds) {
+        cancelAnimationFrame(id);
+      }
+      for (const id of timeoutIds) {
+        window.clearTimeout(id);
+      }
+    };
+    /* v8 ignore stop */
+  }, [
+    isChatMode,
+    isGenerating,
+    isShellModalOpen,
+    isSubmitPending,
+    messages.length,
+    overlayState,
+    pendingUserMessage,
+    syncChatWindowHeight,
+  ]);
 
   /**
    * Observes the dropdown's height while it's open and mutates the morphing
@@ -1622,16 +1916,17 @@ function App() {
               .split(/\s+/);
             if (!provider) {
               throw new Error(
-                "Use /provider ollama, /provider openai <model>, /provider google <model>, /provider anthropic <model>, or /provider xai <model>.",
+                "Use /provider ollama, openai <model>, google <model>, anthropic <model>, xai <model>, or groq <model>.",
               );
             }
 
             const providerDefaults: Record<string, string> = {
-              ollama: "gemma4:e2b",
+              ollama: "llama3.2",
               openai: "gpt-5-mini",
-              google: "gemini-2.5-flash",
+              google: "gemini-3.1-flash",
               anthropic: "claude-3-7-sonnet-latest",
               xai: "grok-3-mini",
+              groq: "llama-3.3-70b-versatile",
             };
 
             const patch: AppSettingsPatch = {
@@ -2205,7 +2500,15 @@ function App() {
     const { found, strippedMessage } = parseCommands(trimmedQuery);
     const hasScreen = found.has("/screen");
     const hasThink = found.has("/think");
-    const nativeCommand = firstNativeCommand(found);
+    const explicitNativeCommand = firstNativeCommand(found);
+    const inferredNativeAction =
+      explicitNativeCommand === null ? inferNativeAction(trimmedQuery) : null;
+    const nativeCommand =
+      explicitNativeCommand ?? inferredNativeAction?.command ?? null;
+    const nativeActionMessage =
+      explicitNativeCommand !== null
+        ? strippedMessage
+        : inferredNativeAction?.strippedMessage ?? strippedMessage;
 
     if (nativeCommand && attachedImages.length > 0) {
       setCaptureError(
@@ -2233,7 +2536,7 @@ function App() {
     if (nativeCommand) {
       void handleNativeActionSubmit(
         trimmedQuery,
-        strippedMessage,
+        nativeActionMessage,
         nativeCommand,
       );
       return;
@@ -2253,6 +2556,35 @@ function App() {
       (img) => img.filePath === null,
     );
     if (!hasPendingImages) {
+      const isVisionCapable = (provider: string, model: string) => {
+        const p = provider.toLowerCase();
+        const m = model.toLowerCase();
+        if (p === \"ollama\") return true; // Assume ollama handles it or fails gracefully
+        if (p === \"openai\") return m.includes(\"gpt-4\") || m.includes(\"gpt-5\") || m.includes(\"o1\");
+        if (p === \"google\") return m.includes(\"gemini\");
+        if (p === \"anthropic\") return m.includes(\"claude-3\");
+        return false;
+      };
+
+      if (
+        attachedImages.length > 0 &&
+        !isVisionCapable(settings?.ai_provider || \"ollama\", settings?.ai_model || \"\")
+      ) {
+        const provider = settings?.ai_provider || \"ollama\";
+        const visionModels: Record<string, string> = {
+          openai: \"gpt-4o\",
+          google: \"gemini-1.5-flash\",
+          anthropic: \"claude-3-5-sonnet-latest\",
+        };
+        const targetModel = visionModels[provider.toLowerCase()];
+        if (targetModel) {
+          void updateSettings({ ai_model: targetModel }).then(() => {
+            executeSubmit(trimmedQuery, context, hasThink || undefined);
+          });
+          return;
+        }
+      }
+
       executeSubmit(trimmedQuery, context, hasThink || undefined);
       return;
     }
@@ -2431,6 +2763,8 @@ function App() {
                 payload.screen_bottom_y ?? null,
               );
             } else if (payload.state === "hide-request") {
+              setIsSettingsOpen(false);
+              setIsHelpOpen(false);
               requestHideOverlay();
             }
           },
@@ -2481,6 +2815,13 @@ function App() {
 
         void refreshSettings().catch(() => undefined);
         void drainPendingSiriRequests().catch(() => undefined);
+
+        // If onboarding is needed, we return the OnboardingView here.
+        // We do it AFTER the handshake so the backend knows the frontend is ready
+        // to receive the onboarding event and resize signals.
+        if (onboardingStage) {
+          return;
+        }
       } catch (error) {
         console.error("Setup error:", error);
         void invoke("log_to_terminal", {
@@ -2508,6 +2849,8 @@ function App() {
    * backend and triggers the frontend exit animation sequence.
    */
   const handleCloseOverlay = useCallback(() => {
+    setIsSettingsOpen(false);
+    setIsHelpOpen(false);
     void invoke("notify_overlay_hidden");
     requestHideOverlay();
   }, [requestHideOverlay]);
@@ -2517,7 +2860,13 @@ function App() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (((e.metaKey || e.ctrlKey) && e.key === "w") || e.key === "Escape") {
         e.preventDefault();
-        handleCloseOverlay();
+        if (isSettingsOpen) {
+          setIsSettingsOpen(false);
+        } else if (isHelpOpen) {
+          setIsHelpOpen(false);
+        } else {
+          handleCloseOverlay();
+        }
       }
       if (e.metaKey && e.key === ",") {
         e.preventDefault();
@@ -2530,7 +2879,7 @@ function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handleCloseOverlay]);
+  }, [handleCloseOverlay, isSettingsOpen, isHelpOpen]);
 
   /** Programmatic focus when the overlay becomes visible. */
   useEffect(() => {
@@ -2569,6 +2918,12 @@ function App() {
    */
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     const el = e.target as HTMLElement | null;
+
+    // Modal panels and other explicit opt-out regions should never initiate
+    // window dragging, even when the click lands on non-form chrome.
+    if (el?.closest("[data-no-window-drag]")) {
+      return;
+    }
 
     // 1. Allow native text selection in explicitly selectable regions.
     // If the click occurs inside a chat bubble (which has .select-text),
@@ -2610,24 +2965,20 @@ function App() {
     );
   }, []);
 
-  if (onboardingStage !== null) {
-    return (
-      <OnboardingView
-        stage={onboardingStage}
-        onComplete={() => setOnboardingStage(null)}
-      />
-    );
-  }
-
   return (
-    // Minimal padding (pt-2 pb-6) provides just enough physical clearance for the
-    // tightened drop shadow to render without clipping at the native window edge.
     <div
       onMouseDown={handleDragStart}
       className={`overlay-shell flex flex-col items-center ${growsUpward ? "justify-end" : "justify-start"} h-screen w-screen px-3 pt-3 pb-7 bg-transparent overflow-visible`}
     >
       <AnimatePresence mode="wait">
-        {shouldRenderOverlay ? (
+        {onboardingStage ? (
+          <div ref={setContainerRef}>
+            <OnboardingView
+              stage={onboardingStage}
+              onComplete={() => setOnboardingStage(null)}
+            />
+          </div>
+        ) : shouldRenderOverlay ? (
           <motion.div
             key={`overlay-${sessionId}`}
             initial={{ opacity: 0, y: -20, scale: 0.96 }}
@@ -2798,13 +3149,18 @@ function App() {
       <SettingsPanel
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+        panelRef={setShellModalNode}
         settings={settings ?? {}}
         onUpdateSettings={async (patch) => {
           await updateSettings(patch);
         }}
       />
 
-      <HelpPanel isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+      <HelpPanel
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        panelRef={setShellModalNode}
+      />
     </div>
   );
 }

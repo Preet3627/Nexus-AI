@@ -130,6 +130,21 @@ export function ChatBubble({
 }: ChatBubbleProps) {
   const isUser = role === "user";
 
+  let displayContent = content;
+  let actionData: { action: string; parameter: string } | null = null;
+
+  if (!isUser) {
+    const jsonMatch = content.match(/```json\s*(\{[\s\S]*?"action"[\s\S]*?\})\s*```/);
+    if (jsonMatch) {
+      try {
+        actionData = JSON.parse(jsonMatch[1]);
+        displayContent = content.replace(jsonMatch[0], "").trim();
+      } catch {
+        // Invalid JSON, leave displayContent as is
+      }
+    }
+  }
+
   return (
     <motion.div
       variants={bubbleVariants}
@@ -195,12 +210,42 @@ export function ChatBubble({
             {errorKind ? (
               <ErrorCard kind={errorKind} message={content} />
             ) : (
-              <MarkdownRenderer content={content} isStreaming={isStreaming} />
+              <>
+                {displayContent && (
+                  <MarkdownRenderer content={displayContent} isStreaming={isStreaming} />
+                )}
+                {actionData && (
+                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/90 shadow-sm backdrop-blur-md">
+                    <svg
+                      className="h-5 w-5 animate-pulse text-[#ff995d]"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    </svg>
+                    <span className="font-medium">
+                      {actionData.action === "volume" && `Changing volume to ${actionData.parameter}...`}
+                      {actionData.action === "open" && `Opening ${actionData.parameter}...`}
+                      {actionData.action === "play" && `Playing ${actionData.parameter}...`}
+                      {actionData.action === "shell" && `Executing shell command...`}
+                      {actionData.action === "web" && `Searching web for "${actionData.parameter}"...`}
+                      {actionData.action === "warn" && `Triggered system warning alert...`}
+                      {actionData.action === "remember" && `Saving to long-term memory: "${actionData.parameter}"...`}
+                      {actionData.action === "switch_profile" && `Switching profile to "${actionData.parameter}"...`}
+                      {!["volume", "open", "play", "shell", "web", "warn", "remember", "switch_profile"].includes(actionData.action) && `Executing ${actionData.action}...`}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </div>
-          {!errorKind && !isStreaming && (
+          {!errorKind && !isStreaming && displayContent && (
             <div className="h-6 flex items-center">
-              <CopyButton content={content} align="left" />
+              <CopyButton content={displayContent} align="left" />
             </div>
           )}
         </div>

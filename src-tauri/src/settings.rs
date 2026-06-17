@@ -47,6 +47,7 @@ pub struct AppSettings {
     pub google_api_key: Option<String>,
     pub anthropic_api_key: Option<String>,
     pub xai_api_key: Option<String>,
+    pub groq_api_key: Option<String>,
     pub github_access_token: Option<String>,
     pub exa_api_key: Option<String>,
     pub ollama_base_url: String,
@@ -67,18 +68,23 @@ pub struct AppSettings {
     pub launch_at_login: bool,
     pub hide_from_dock: bool,
     pub theme: String,
+    pub auto_volume: bool,
+    pub auto_open: bool,
+    pub auto_play: bool,
+    pub auto_web: bool,
 }
 
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
             ai_provider: "ollama".to_string(),
-            ai_model: "gemma4:e2b".to_string(),
+            ai_model: "llama3.2".to_string(),
             music_provider: "youtube".to_string(),
             openai_api_key: None,
             google_api_key: None,
             anthropic_api_key: None,
             xai_api_key: None,
+            groq_api_key: None,
             github_access_token: None,
             exa_api_key: None,
             ollama_base_url: "http://127.0.0.1:11434".to_string(),
@@ -99,6 +105,10 @@ impl Default for AppSettings {
             launch_at_login: false,
             hide_from_dock: false,
             theme: "dark".to_string(),
+            auto_volume: true,
+            auto_open: true,
+            auto_play: true,
+            auto_web: true,
         }
     }
 }
@@ -112,6 +122,7 @@ pub struct AppSettingsPatch {
     pub google_api_key: Option<String>,
     pub anthropic_api_key: Option<String>,
     pub xai_api_key: Option<String>,
+    pub groq_api_key: Option<String>,
     pub github_access_token: Option<String>,
     pub exa_api_key: Option<String>,
     pub ollama_base_url: Option<String>,
@@ -132,6 +143,10 @@ pub struct AppSettingsPatch {
     pub launch_at_login: Option<bool>,
     pub hide_from_dock: Option<bool>,
     pub theme: Option<String>,
+    pub auto_volume: Option<bool>,
+    pub auto_open: Option<bool>,
+    pub auto_play: Option<bool>,
+    pub auto_web: Option<bool>,
 }
 
 fn normalize_provider(provider: &str) -> String {
@@ -140,6 +155,7 @@ fn normalize_provider(provider: &str) -> String {
         "google" | "gemini" | "vercel-google" => "vercel-google".to_string(),
         "anthropic" | "vercel-anthropic" => "vercel-anthropic".to_string(),
         "xai" | "grok" | "vercel-xai" => "vercel-xai".to_string(),
+        "groq" | "vercel-groq" => "vercel-groq".to_string(),
         _ => "ollama".to_string(),
     }
 }
@@ -221,6 +237,10 @@ fn merge_patch(mut settings: AppSettings, patch: AppSettingsPatch) -> AppSetting
 
     if let Some(value) = non_empty(patch.xai_api_key) {
         settings.xai_api_key = Some(value);
+    }
+
+    if let Some(value) = non_empty(patch.groq_api_key) {
+        settings.groq_api_key = Some(value);
     }
 
     if let Some(value) = non_empty(patch.github_access_token) {
@@ -308,6 +328,22 @@ fn merge_patch(mut settings: AppSettings, patch: AppSettingsPatch) -> AppSetting
         if let Some(normalized) = normalize_theme(&value) {
             settings.theme = normalized;
         }
+    }
+
+    if let Some(value) = patch.auto_volume {
+        settings.auto_volume = value;
+    }
+
+    if let Some(value) = patch.auto_open {
+        settings.auto_open = value;
+    }
+
+    if let Some(value) = patch.auto_play {
+        settings.auto_play = value;
+    }
+
+    if let Some(value) = patch.auto_web {
+        settings.auto_web = value;
     }
 
     settings

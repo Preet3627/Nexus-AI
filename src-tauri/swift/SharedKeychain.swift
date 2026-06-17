@@ -32,8 +32,7 @@ func buildQuery(returnData: Bool = false) -> [String: Any] {
     var query: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
         kSecAttrService as String: service,
-        kSecAttrAccount as String: account,
-        kSecUseDataProtectionKeychain as String: true
+        kSecAttrAccount as String: account
     ]
 
     query[kSecAttrSynchronizable as String] = synchronizable ? kCFBooleanTrue : kCFBooleanFalse

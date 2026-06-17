@@ -302,6 +302,23 @@ pub fn set_output_volume(level: u8) -> Result<String, String> {
     Ok(format!("Set the macOS output volume to {clamped}%."))
 }
 
+#[tauri::command]
+pub fn show_native_alert(title: String, message: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            "display alert \"{}\" message \"{}\" as warning",
+            title.replace("\"", "\\\""),
+            message.replace("\"", "\\\"")
+        );
+        Command::new("osascript")
+            .args(["-e", &script])
+            .status()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg(not(target_os = "macos"))]
 #[tauri::command]
 pub fn set_output_volume(_level: u8) -> Result<String, String> {

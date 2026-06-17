@@ -171,7 +171,20 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+}
+
+#root {
   user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"],
+.select-text {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .overlay-shell {

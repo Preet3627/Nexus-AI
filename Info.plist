@@ -7,7 +7,7 @@
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIconFile</key>
-    <string>icon</string>
+    <string>icon.icns</string>
     <key>CFBundleIconName</key>
     <string>AppIcon</string>
     <key>CFBundleIdentifier</key>
@@ -38,6 +38,8 @@
     <true/>
     
     <!-- Privacy Descriptions -->
+    <key>NSAccessibilityUsageDescription</key>
+    <string>Nexus-AI needs Accessibility access to monitor the double-Control shortcut for activating the overlay and to capture selected text.</string>
     <key>NSFaceIDUsageDescription</key>
     <string>Nexus-AI uses Face ID to securely access your conversations and settings.</string>
     <key>NSScreenCaptureUsageDescription</key>

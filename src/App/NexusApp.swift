@@ -13,7 +13,6 @@ struct NexusApp: App {
     var body: some Scene {
         WindowGroup {
             NativeCommandCenterView(settings: settings)
-                .frame(minWidth: 720, minHeight: 120)
                 .preferredColorScheme(.dark)
         }
         .windowStyle(.hiddenTitleBar)
@@ -961,8 +960,6 @@ private struct WindowConfigurator: NSViewRepresentable {
     }
 
     final class Coordinator {
-        private var lastAppliedHeight: CGFloat = 0
-
         func configureWindow(
             for window: NSWindow?,
             targetContentSize: CGSize,
@@ -982,20 +979,12 @@ private struct WindowConfigurator: NSViewRepresentable {
 
             guard targetContentSize.height > 0 else { return }
 
-            let chromeHeight = window.frame.height - window.contentLayoutRect.height
-            let visibleScreenHeight = (window.screen ?? NSScreen.main)?.visibleFrame.height ?? 900
-            let targetHeight = min(
-                max(targetContentSize.height + chromeHeight, minimumHeight),
-                visibleScreenHeight - 32
+            window.setContentSize(
+                NSSize(
+                    width: max(targetContentSize.width, minimumWidth),
+                    height: max(targetContentSize.height, minimumHeight)
+                )
             )
-
-            guard abs(targetHeight - lastAppliedHeight) > 1 else { return }
-            lastAppliedHeight = targetHeight
-
-            var frame = window.frame
-            frame.origin.y = frame.maxY - targetHeight
-            frame.size.height = targetHeight
-            window.setFrame(frame, display: true, animate: false)
         }
     }
 }

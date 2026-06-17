@@ -65,14 +65,47 @@ fn open_comet_target(target: &str) -> Result<(), String> {
         return Err("Comet target is empty.".to_string());
     }
 
-    let status = if trimmed.ends_with(".app") || std::path::Path::new(trimmed).exists() {
+    // If the target is just an app name (not a path), try common development locations
+    let resolved_path = if trimmed.ends_with(".app") || std::path::Path::new(trimmed).exists() {
+        trimmed.to_string()
+    } else {
+        // Try common locations for the built app
+        let home = std::env::var("HOME").unwrap_or_default();
+        let candidates = vec![
+            format!("/Applications/{trimmed}.app"),
+            format!("{home}/Applications/{trimmed}.app"),
+            format!(
+                "{home}/Developer/Projects/{trimmed}/comet-browser/release/mac-arm64/{trimmed}.app",
+            ),
+            format!("{home}/Developer/Projects/{trimmed}/comet-browser/dist/mac-arm64/{trimmed}.app"),
+        ];
+
+        let mut found = None;
+        for candidate in &candidates {
+            if std::path::Path::new(candidate).exists() {
+                found = Some(candidate.clone());
+                break;
+            }
+        }
+
+        match found {
+            Some(path) => {
+                tracing::info!("Found Comet-AI at {path}");
+                path
+            }
+            None => trimmed.to_string(),
+        }
+    };
+
+    let status = if resolved_path.ends_with(".app") || std::path::Path::new(&resolved_path).exists()
+    {
         std::process::Command::new("open")
-            .arg(trimmed)
+            .arg(&resolved_path)
             .status()
             .map_err(|e| e.to_string())?
     } else {
         std::process::Command::new("open")
-            .args(["-a", trimmed])
+            .args(["-a", &resolved_path])
             .status()
             .map_err(|e| e.to_string())?
     };
@@ -134,19 +167,48 @@ pub async fn comet_launch_and_connect(
         .filter(|item| !item.trim().is_empty())
         .unwrap_or_else(|| "localhost".to_string());
     let port = options.port.unwrap_or(9922);
-    let wait_ms = options.wait_ms.unwrap_or(1_500);
+    let wait_ms = options.wait_ms.unwrap_or(1_500).max(500);
 
-    open_comet_target(&target)?;
-    std::thread::sleep(Duration::from_millis(wait_ms));
-    try_connect(&host, port).await?;
-
-    if let Some(url) = options.url.filter(|item| !item.trim().is_empty()) {
-        let _ = comet_open_url(url).await;
+    // Launch the Comet-AI app
+    let launch_result = open_comet_target(&target);
+    if let Err(e) = &launch_result {
+        tracing::warn!("Comet launch attempt failed: {e}, will retry connection anyway");
     }
 
-    Ok(format!(
-        "Comet-AI is available at http://{}:{} and ready for browser tasks.",
-        host, port
+    // Initial wait for app to start
+    std::thread::sleep(Duration::from_millis(wait_ms));
+
+    // Retry connection with backoff (handles lazy loading / slow startup)
+    let max_retries = 6;
+    let mut last_error = String::new();
+    for attempt in 0..max_retries {
+        match try_connect(&host, port).await {
+            Ok(()) => {
+                if let Some(url) = options.url.filter(|item| !item.trim().is_empty()) {
+                    let _ = comet_open_url(url).await;
+                }
+                return Ok(format!(
+                    "Comet-AI is available at http://{}:{} and ready for browser tasks.",
+                    host, port
+                ));
+            }
+            Err(e) => {
+                last_error = e;
+                if attempt < max_retries - 1 {
+                    let backoff_ms = 1000 * (attempt + 1);
+                    tracing::info!(
+                        "Comet-AI connection attempt {} failed, retrying in {}ms...",
+                        attempt + 1,
+                        backoff_ms
+                    );
+                    std::thread::sleep(Duration::from_millis(backoff_ms));
+                }
+            }
+        }
+    }
+
+    Err(format!(
+        "Cannot connect to Comet-AI after {max_retries} attempts: {last_error}"
     ))
 }
 

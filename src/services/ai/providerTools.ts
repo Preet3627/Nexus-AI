@@ -23,7 +23,7 @@ function normalizeMcpHeaders(
 }
 
 export function createProviderTools(settings?: AppSettings | null) {
-  if (settings?.ai_provider !== "vercel-openai") {
+  if (settings?.ai_provider !== "openai") {
     return {};
   }
 

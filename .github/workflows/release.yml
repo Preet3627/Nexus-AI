@@ -22,32 +22,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest]
         include:
-          - args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
             target: 'aarch64-apple-darwin'
-          - args: '--target x86_64-apple-darwin'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
             target: 'x86_64-apple-darwin'
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: lts/*
           cache: 'npm'
 
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Install npm dependencies
+      - name: Install frontend dependencies
         run: npm ci --legacy-peer-deps
 
       - name: Setup Rust
@@ -55,25 +47,12 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Cache Cargo
+      - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
 
-      - name: Cache XcodeGen
-        id: xcodegen-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/local/bin/xcodegen
-            /opt/homebrew/bin/xcodegen
-          key: ${{ runner.os }}-xcodegen
-
-      - name: Install XcodeGen
-        if: steps.xcodegen-cache.outputs.cache-hit != 'true'
-        run: brew install xcodegen
-
-      - name: Build Tauri app
+      - name: Build and release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -94,7 +73,6 @@ jobs:
             1. Download the DMG for your Mac type
             2. Open the DMG file
             3. Drag Nexus-AI to Applications
-            4. Launch from Applications
 
             ## Requirements
 
@@ -104,53 +82,6 @@ jobs:
             ## What's New
 
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-          releaseDraft: false
+          releaseDraft: true
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           args: ${{ matrix.args }}
-
-  build-dmg-universal:
-    permissions:
-      contents: write
-    runs-on: macos-latest
-    needs: build-tauri
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Build universal binary
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Nexus-AI ${{ github.ref_name }} (Universal)'
-          releaseBody: |
-            ## Universal Binary
-
-            This single DMG works on both Apple Silicon and Intel Macs.
-
-            ## Installation
-
-            1. Download the DMG
-            2. Open and drag to Applications
-          releaseDraft: false
-          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}

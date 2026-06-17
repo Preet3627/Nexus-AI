@@ -16,6 +16,7 @@ export interface AppSettings {
   google_api_key?: string | null;
   anthropic_api_key?: string | null;
   xai_api_key?: string | null;
+  groq_api_key?: string | null;
   github_access_token?: string | null;
   exa_api_key?: string | null;
   ollama_base_url: string;
@@ -36,6 +37,10 @@ export interface AppSettings {
   launch_at_login: boolean;
   hide_from_dock: boolean;
   theme: string;
+  auto_volume: boolean;
+  auto_open: boolean;
+  auto_play: boolean;
+  auto_web: boolean;
 }
 
 export type AppSettingsPatch = Partial<AppSettings>;

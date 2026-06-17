@@ -11,6 +11,8 @@
 		CA011724D0A490EAD64A4EC3 /* NexusApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA6223D41F047EFF399776E /* NexusApp.swift */; };
 		E70E52E4F169E665E3727426 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD818D59051C53C6BF67523 /* AppSettings.swift */; };
 		EF44A2BB5B4F422F0095293B /* AppModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1683E8B0E7F9276548CD3C05 /* AppModels.swift */; };
+		A1A2A3A4A5A6A7A8A9B0B1B2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1B2B3B4B5B6B7B8B9C0C1C2 /* Assets.xcassets */; };
+		F3C4D5E6A7B8C9D001122334 /* icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = F3C4D5E6A7B8C9D001122333 /* icon.icns */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +21,8 @@
 		2DD818D59051C53C6BF67523 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		AFA6223D41F047EFF399776E /* NexusApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NexusApp.swift; sourceTree = "<group>"; };
 		B50FF917764C64CDC6766A02 /* Nexus-AI.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Nexus-AI.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B1B2B3B4B5B6B7B8B9C0C1C2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F3C4D5E6A7B8C9D001122333 /* icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = icon.icns; path = "src-tauri/icons/icon.icns"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -43,6 +47,8 @@
 		619E8FAA2F9B7C551293447B = {
 			isa = PBXGroup;
 			children = (
+				B1B2B3B4B5B6B7B8B9C0C1C2 /* Assets.xcassets */,
+				F3C4D5E6A7B8C9D001122333 /* icon.icns */,
 				6967C6FC3E7D01FDDB32EB95 /* src */,
 				F2D42D05709561B71FC9AA77 /* Products */,
 			);
@@ -180,6 +186,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1A2A3A4A5A6A7A8A9B0B1B2 /* Assets.xcassets in Resources */,
+				F3C4D5E6A7B8C9D001122334 /* icon.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -207,11 +215,10 @@
 				CODE_SIGN_ENTITLEMENTS = "Nexus-AI.entitlements";
 				COMBINE_HIDPI_IMAGES = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_HARDENED_RUNTIME = YES;
+				DEVELOPMENT_TEAM = 7L55TLD9MR;
+				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"@executable_path/../Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nexusai.macos;
 				SDKROOT = macosx;
 			};
@@ -224,11 +231,10 @@
 				CODE_SIGN_ENTITLEMENTS = "Nexus-AI.entitlements";
 				COMBINE_HIDPI_IMAGES = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_HARDENED_RUNTIME = YES;
+				DEVELOPMENT_TEAM = 7L55TLD9MR;
+				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"@executable_path/../Frameworks",
-				);
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.nexusai.macos;
 				SDKROOT = macosx;
 			};
@@ -272,7 +278,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -342,7 +348,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

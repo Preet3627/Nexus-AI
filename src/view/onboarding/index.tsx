@@ -23,5 +23,5 @@ export function OnboardingView({ stage, onComplete }: Props) {
   if (stage === "intro") {
     return <IntroStep onComplete={onComplete} />;
   }
-  return <PermissionsStep />;
+  return <PermissionsStep onComplete={onComplete} />;
 }

@@ -18,7 +18,7 @@ settings:
     SWIFT_VERSION: "5.9"
     MACOSX_DEPLOYMENT_TARGET: "13.0"
     CODE_SIGN_STYLE: Automatic
-    ENABLE_HARDENED_RUNTIME: YES
+    ENABLE_HARDENED_RUNTIME: NO
     CODE_SIGN_IDENTITY: "-"
     CLANG_ENABLE_MODULES: YES
     SWIFT_EMIT_LOC_STRINGS: YES
@@ -29,18 +29,21 @@ targets:
     type: application
     platform: macOS
     sources:
+      - path: Assets.xcassets
       - path: src
         type: group
+      - path: src-tauri/icons/icon.icns
+        buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.nexusai.nativepreview
+        PRODUCT_BUNDLE_IDENTIFIER: com.nexusai.macos
         INFOPLIST_FILE: Info.plist
         CODE_SIGN_ENTITLEMENTS: Nexus-AI.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         COMBINE_HIDPI_IMAGES: YES
         LD_RUNPATH_SEARCH_PATHS:
           - "@executable_path/../Frameworks"
-        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_HARDENED_RUNTIME: NO
         DEBUG_INFORMATION_FORMAT: dwarf-with-dsym
     entitlements:
       path: Nexus-AI.entitlements

@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useAppSettings } from "../../hooks/useAppSettings";
-import thukiLogo from "../../../src-tauri/icons/128x128.png";
+import nexusLogo from "../../../src-tauri/icons/128x128.png";
 
 interface Props {
   onComplete: () => void;
@@ -47,10 +47,10 @@ export function IntroStep({ onComplete }: Props) {
       >
         {/* Logo */}
         <img
-          src={thukiLogo}
+          src={nexusLogo}
           width={44}
           height={44}
-          alt="Thuki"
+          alt="Nexus-AI"
           style={{
             objectFit: "contain",
             display: "block",
@@ -119,7 +119,7 @@ export function IntroStep({ onComplete }: Props) {
                 <span>for context</span>
               </>
             }
-            desc="Captures your display so Thuki can see what you see"
+            desc="Captures your display so Nexus-AI can see what you see"
           />
           <Fact
             icon={<FloatIcon />}

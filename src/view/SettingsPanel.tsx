@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Ref } from "react";
 import { motion } from "framer-motion";
 import { invoke } from "@tauri-apps/api/core";
 import type { AppSettings } from "../types/settings";
@@ -7,6 +7,7 @@ import {
   fetchGoogleModels,
   fetchAnthropicModels,
   fetchXaiModels,
+  fetchGroqModels,
 } from "../services/ai/provider";
 
 interface GoogleAuthStatus {
@@ -20,11 +21,13 @@ type CloudKeyField =
   | "openai_api_key"
   | "google_api_key"
   | "anthropic_api_key"
-  | "xai_api_key";
+  | "xai_api_key"
+  | "groq_api_key";
 
 interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  panelRef?: Ref<HTMLDivElement>;
   settings: Partial<AppSettings>;
   onUpdateSettings: (patch: Record<string, unknown>) => Promise<void>;
 }
@@ -58,12 +61,12 @@ const PROVIDERS: ProviderConfig[] = [
   {
     id: "ollama",
     name: "Ollama",
-    defaultModel: "gemma4:e2b",
+    defaultModel: "llama3.2",
     models: [],
     description: "Runs local models on your Mac. No API key required.",
     setup: [
       "Install Ollama on this Mac.",
-      "Run `ollama pull gemma4:e2b` or another model.",
+      "Run `ollama pull llama3.2` or another model.",
       "Keep Ollama running while Nexus AI is open.",
     ],
     docsUrl: "https://ollama.com/download",
@@ -85,10 +88,10 @@ const PROVIDERS: ProviderConfig[] = [
     docsUrl: "https://platform.openai.com/docs/overview",
   },
   {
-    id: "vercel-google",
+    id: "google",
     name: "Google",
-    defaultModel: "gemini-2.5-flash",
-    models: ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"],
+    defaultModel: "gemini-1.5-flash",
+    models: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-3.0-flash"],
     description: "Gemini models from Google AI Studio.",
     setup: [
       "Open Google AI Studio and create an API key.",
@@ -101,7 +104,7 @@ const PROVIDERS: ProviderConfig[] = [
     docsUrl: "https://ai.google.dev/tutorials/setup",
   },
   {
-    id: "vercel-anthropic",
+    id: "anthropic",
     name: "Anthropic",
     defaultModel: "claude-3-7-sonnet-latest",
     models: [
@@ -121,7 +124,7 @@ const PROVIDERS: ProviderConfig[] = [
     docsUrl: "https://docs.anthropic.com/en/api/getting-started",
   },
   {
-    id: "vercel-xai",
+    id: "xai",
     name: "xAI",
     defaultModel: "grok-3-mini",
     models: ["grok-3-mini", "grok-3", "grok-2"],
@@ -135,6 +138,22 @@ const PROVIDERS: ProviderConfig[] = [
     keyPlaceholder: "xai-...",
     keyUrl: "https://console.x.ai",
     docsUrl: "https://x.ai/news/api/",
+  },
+  {
+    id: "groq",
+    name: "Groq",
+    defaultModel: "llama-3.3-70b-versatile",
+    models: ["llama-3.3-70b-versatile", "mixtral-8x7b-32768", "gemma2-9b-it"],
+    description: "Fast open source models using Groq LPU inference.",
+    setup: [
+      "Create an API key in the Groq Console.",
+      "Paste the key here and save it.",
+      "Enjoy blazing fast generation.",
+    ],
+    keyField: "groq_api_key",
+    keyPlaceholder: "gsk_...",
+    keyUrl: "https://console.groq.com/keys",
+    docsUrl: "https://console.groq.com/docs/quickstart",
   },
 ];
 
@@ -189,18 +208,21 @@ function normalizeProviderId(value?: string | null): string {
   switch (value?.trim().toLowerCase()) {
     case "openai":
     case "vercel-openai":
-      return "vercel-openai";
+      return "openai";
     case "google":
     case "gemini":
     case "vercel-google":
-      return "vercel-google";
+      return "google";
     case "anthropic":
     case "vercel-anthropic":
-      return "vercel-anthropic";
+      return "anthropic";
     case "xai":
     case "grok":
     case "vercel-xai":
-      return "vercel-xai";
+      return "xai";
+    case "groq":
+    case "vercel-groq":
+      return "groq";
     default:
       return "ollama";
   }
@@ -209,6 +231,7 @@ function normalizeProviderId(value?: string | null): string {
 export function SettingsPanel({
   isOpen,
   onClose,
+  panelRef,
   settings,
   onUpdateSettings,
 }: SettingsPanelProps) {
@@ -220,6 +243,7 @@ export function SettingsPanel({
     google_api_key: "",
     anthropic_api_key: "",
     xai_api_key: "",
+    groq_api_key: "",
   });
   const [savingKeyField, setSavingKeyField] = useState<CloudKeyField | null>(
     null,
@@ -229,6 +253,11 @@ export function SettingsPanel({
   const [cloudModels, setCloudModels] = useState<Record<string, string[]>>({});
   const [isLoadingCloudModels, setIsLoadingCloudModels] = useState(false);
 
+  const [memories, setMemories] = useState<{ id: string; content: string; created_at: number }[]>([]);
+  const [newMemory, setNewMemory] = useState("");
+  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
+  const [editingMemoryText, setEditingMemoryText] = useState("");
+
   const currentProviderId = normalizeProviderId(settings.ai_provider);
   const activeProvider =
     PROVIDERS.find((provider) => provider.id === currentProviderId) ??
@@ -237,20 +266,20 @@ export function SettingsPanel({
     settings.ai_model ||
     PROVIDERS.find((provider) => provider.id === currentProviderId)
       ?.defaultModel ||
-    "gemma4:e2b";
+    "llama3.2";
   const currentMusicProvider =
     MUSIC_PROVIDERS.find((provider) => provider.id === settings.music_provider)
       ?.id ?? "youtube";
 
   const isOllamaProvider = currentProviderId === "ollama";
-  const isCloudProvider = ["vercel-openai", "vercel-google", "vercel-anthropic", "vercel-xai"].includes(currentProviderId);
+  const isCloudProvider = ["openai", "google", "anthropic", "xai", "groq"].includes(currentProviderId);
   const displayModels = isOllamaProvider && ollamaModels.length > 0
     ? ollamaModels
     : isCloudProvider && cloudModels[currentProviderId]?.length > 0
       ? cloudModels[currentProviderId]
       : activeProvider.models.length > 0
         ? activeProvider.models
-        : ["gemma4:e2b"];
+        : [activeProvider.defaultModel];
 
   useEffect(() => {
     if (!isOpen) {
@@ -262,6 +291,7 @@ export function SettingsPanel({
       google_api_key: settings.google_api_key ?? "",
       anthropic_api_key: settings.anthropic_api_key ?? "",
       xai_api_key: settings.xai_api_key ?? "",
+      groq_api_key: settings.groq_api_key ?? "",
     });
   }, [
     isOpen,
@@ -269,6 +299,7 @@ export function SettingsPanel({
     settings.google_api_key,
     settings.openai_api_key,
     settings.xai_api_key,
+    settings.groq_api_key,
   ]);
 
   useEffect(() => {
@@ -283,6 +314,10 @@ export function SettingsPanel({
       return;
     }
     void fetchOllamaModels();
+
+    const onFocus = () => void fetchOllamaModels();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [isOpen, isOllamaProvider]);
 
   useEffect(() => {
@@ -290,6 +325,10 @@ export function SettingsPanel({
       return;
     }
     void fetchCloudModels();
+
+    const onFocus = () => void fetchCloudModels();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [isOpen, isCloudProvider]);
 
   const fetchOllamaModels = async () => {
@@ -312,10 +351,11 @@ export function SettingsPanel({
   const fetchCloudModels = async () => {
     setIsLoadingCloudModels(true);
     const apiKeyMap: Record<string, string> = {
-      "vercel-openai": settings.openai_api_key ?? "",
-      "vercel-google": settings.google_api_key ?? "",
-      "vercel-anthropic": settings.anthropic_api_key ?? "",
-      "vercel-xai": settings.xai_api_key ?? "",
+      openai: settings.openai_api_key ?? "",
+      google: settings.google_api_key ?? "",
+      anthropic: settings.anthropic_api_key ?? "",
+      xai: settings.xai_api_key ?? "",
+      groq: settings.groq_api_key ?? "",
     };
     const apiKey = apiKeyMap[currentProviderId];
     if (!apiKey) {
@@ -325,17 +365,20 @@ export function SettingsPanel({
     try {
       let models: string[] = [];
       switch (currentProviderId) {
-        case "vercel-openai":
+        case "openai":
           models = await fetchOpenAIModels(apiKey);
           break;
-        case "vercel-google":
+        case "google":
           models = await fetchGoogleModels(apiKey);
           break;
-        case "vercel-anthropic":
+        case "anthropic":
           models = await fetchAnthropicModels(apiKey);
           break;
-        case "vercel-xai":
+        case "xai":
           models = await fetchXaiModels(apiKey);
+          break;
+        case "groq":
+          models = await fetchGroqModels(apiKey);
           break;
       }
       setCloudModels((prev) => ({ ...prev, [currentProviderId]: models }));
@@ -430,6 +473,57 @@ export function SettingsPanel({
     }
   };
 
+  const fetchMemories = async () => {
+    try {
+      const items = await invoke<{ id: string; content: string; created_at: number }[]>("get_user_memories");
+      setMemories(items);
+    } catch (error) {
+      console.error("Failed to load memories:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      void fetchMemories();
+    }
+  }, [isOpen]);
+
+  const handleDeleteMemory = async (id: string) => {
+    try {
+      await invoke("delete_user_memory", { id });
+      void fetchMemories();
+    } catch (error) {
+      console.error("Failed to delete memory:", error);
+    }
+  };
+
+  const handleStartEdit = (id: string, content: string) => {
+    setEditingMemoryId(id);
+    setEditingMemoryText(content);
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    try {
+      await invoke("edit_user_memory", { id, content: editingMemoryText });
+      setEditingMemoryId(null);
+      setEditingMemoryText("");
+      void fetchMemories();
+    } catch (error) {
+      console.error("Failed to save memory:", error);
+    }
+  };
+
+  const handleAddMemory = async () => {
+    if (!newMemory.trim()) return;
+    try {
+      await invoke("add_user_memory", { content: newMemory });
+      setNewMemory("");
+      void fetchMemories();
+    } catch (error) {
+      console.error("Failed to add memory:", error);
+    }
+  };
+
   if (!isOpen) {
     return null;
   }
@@ -447,20 +541,23 @@ export function SettingsPanel({
       onClick={onClose}
     >
       <motion.div
+        ref={panelRef}
         initial={{ scale: 0.96, opacity: 0, y: 18 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.96, opacity: 0, y: 18 }}
         transition={{ type: "spring", damping: 24, stiffness: 280 }}
+        data-no-window-drag
         className="my-auto flex w-full max-w-[640px] flex-col overflow-hidden rounded-[30px] border border-white/12 bg-[linear-gradient(180deg,rgba(14,18,25,0.92),rgba(10,13,20,0.82))] shadow-[0_32px_120px_-42px_rgba(0,0,0,0.88)] backdrop-blur-2xl"
         style={{ maxHeight: "min(880px, calc(100vh - 3rem))" }}
+        onMouseDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="shrink-0 border-b border-white/10 bg-[linear-gradient(135deg,rgba(255,140,92,0.14),rgba(94,154,255,0.08))] px-6 py-5">
+        <div className="shrink-0 border-b border-white/10 bg-[linear-gradient(135deg,rgba(255,140,92,0.14),rgba(94,154,255,0.08))] px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#ff995d,#ff6b5d)] shadow-[0_18px_40px_-22px_rgba(255,140,92,0.85)]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#ff995d,#ff6b5d)] shadow-[0_18px_40px_-22px_rgba(255,140,92,0.85)]">
                 <svg
-                  className="h-5 w-5 text-white"
+                  className="h-4.5 w-4.5 text-white"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -471,9 +568,11 @@ export function SettingsPanel({
                 </svg>
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-white">Settings</h2>
-                <p className="text-xs text-white/55">
-                  Providers, startup behavior, and overlay appearance
+                <h2 className="text-[1.85rem] font-semibold leading-none text-white">
+                  Settings
+                </h2>
+                <p className="mt-2 text-sm text-white/55">
+                  Provider, account, startup, and theme controls
                 </p>
               </div>
             </div>
@@ -493,24 +592,8 @@ export function SettingsPanel({
               </svg>
             </button>
           </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {[
-              "Provider + model",
-              "Shared Google account",
-              "Startup behavior",
-              "Theme tuning",
-            ].map((label) => (
-              <span
-                key={label}
-                className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[11px] font-medium text-white/60"
-              >
-                {label}
-              </span>
-            ))}
-          </div>
         </div>
-        <div className="min-h-0 space-y-6 overflow-y-auto px-6 py-6">
+        <div className="min-h-0 space-y-5 overflow-y-auto px-5 py-5">
           <section className="space-y-4">
             <div className="flex items-center gap-2 text-white/88">
               <span className="text-xs font-semibold uppercase tracking-[0.22em] text-white/58">
@@ -531,7 +614,9 @@ export function SettingsPanel({
                 >
                   <div className="font-semibold">{provider.name}</div>
                   <div className="mt-1 text-[11px] text-white/48">
-                    {provider.defaultModel}
+                    {currentProviderId === provider.id && currentModel
+                      ? currentModel
+                      : provider.defaultModel}
                   </div>
                 </button>
               ))}
@@ -615,6 +700,23 @@ export function SettingsPanel({
                   </button>
                 ))
               )}
+            </div>
+
+            <div className="mt-3">
+              <label className="block">
+                <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-white/50">
+                  Custom Model Name
+                </span>
+                <input
+                  type="text"
+                  value={settings.ai_model || ""}
+                  onChange={(event) =>
+                    void onUpdateSettings({ ai_model: event.target.value })
+                  }
+                  placeholder="Or type custom model name (e.g. gemma, llama3.2:1b)"
+                  className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-white/24"
+                />
+              </label>
             </div>
           </section>
 
@@ -776,6 +878,114 @@ export function SettingsPanel({
                 </button>
               ))}
             </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-white/88">
+              <span className="text-xs font-semibold uppercase tracking-[0.22em] text-white/58">
+                Command Automation (Low & Medium Risk)
+              </span>
+            </div>
+
+            <button
+              onClick={() => handleToggle("auto_volume", !settings.auto_volume)}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition-colors hover:bg-white/8"
+            >
+              <div>
+                <p className="text-sm font-medium text-white">Auto-adjust Volume</p>
+                <p className="mt-1 text-xs text-white/52">
+                  Allow AI to change system volume without Touch ID.
+                </p>
+              </div>
+              <div
+                className={`h-6 w-12 rounded-full transition-colors ${
+                  settings.auto_volume
+                    ? "bg-[linear-gradient(90deg,#ff995d,#ff735d)]"
+                    : "bg-white/18"
+                }`}
+              >
+                <div
+                  className={`h-5 w-5 rounded-full bg-white shadow-lg transition-transform ${
+                    settings.auto_volume ? "translate-x-6" : "translate-x-0.5"
+                  } mt-0.5`}
+                />
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleToggle("auto_open", !settings.auto_open)}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition-colors hover:bg-white/8"
+            >
+              <div>
+                <p className="text-sm font-medium text-white">Auto-open Apps/URLs</p>
+                <p className="mt-1 text-xs text-white/52">
+                  Allow AI to open applications or web links automatically.
+                </p>
+              </div>
+              <div
+                className={`h-6 w-12 rounded-full transition-colors ${
+                  settings.auto_open
+                    ? "bg-[linear-gradient(90deg,#ff995d,#ff735d)]"
+                    : "bg-white/18"
+                }`}
+              >
+                <div
+                  className={`h-5 w-5 rounded-full bg-white shadow-lg transition-transform ${
+                    settings.auto_open ? "translate-x-6" : "translate-x-0.5"
+                  } mt-0.5`}
+                />
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleToggle("auto_play", !settings.auto_play)}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition-colors hover:bg-white/8"
+            >
+              <div>
+                <p className="text-sm font-medium text-white">Auto-play Music</p>
+                <p className="mt-1 text-xs text-white/52">
+                  Allow AI to automatically search and play music.
+                </p>
+              </div>
+              <div
+                className={`h-6 w-12 rounded-full transition-colors ${
+                  settings.auto_play
+                    ? "bg-[linear-gradient(90deg,#ff995d,#ff735d)]"
+                    : "bg-white/18"
+                }`}
+              >
+                <div
+                  className={`h-5 w-5 rounded-full bg-white shadow-lg transition-transform ${
+                    settings.auto_play ? "translate-x-6" : "translate-x-0.5"
+                  } mt-0.5`}
+                />
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleToggle("auto_web", !settings.auto_web)}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition-colors hover:bg-white/8"
+            >
+              <div>
+                <p className="text-sm font-medium text-white">Auto-search Web</p>
+                <p className="mt-1 text-xs text-white/52">
+                  Allow AI to run search queries automatically in your browser.
+                </p>
+              </div>
+              <div
+                className={`h-6 w-12 rounded-full transition-colors ${
+                  settings.auto_web
+                    ? "bg-[linear-gradient(90deg,#ff995d,#ff735d)]"
+                    : "bg-white/18"
+                }`}
+              >
+                <div
+                  className={`h-5 w-5 rounded-full bg-white shadow-lg transition-transform ${
+                    settings.auto_web ? "translate-x-6" : "translate-x-0.5"
+                  } mt-0.5`}
+                />
+              </div>
+            </button>
           </section>
 
           <section className="space-y-3">
@@ -977,6 +1187,104 @@ export function SettingsPanel({
                       : "Sign in via browser.ponsrischool.in"}
                   </button>
                 </div>
+              )}
+            </div>
+          </section>
+
+          <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-5">
+            <div className="flex items-center justify-between text-white/88">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.22em] text-white/58">
+                  Long-Term Memory (RAG Context)
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-white/45 leading-relaxed">
+              These are facts and preferences Thuki has learned about you. They are injected as local RAG context on every new prompt. You can manually add, edit, or delete them.
+            </p>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newMemory}
+                onChange={(e) => setNewMemory(e.target.value)}
+                placeholder="Add new memory (e.g. My birthday is July 4th)"
+                className="flex-1 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-white/24"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleAddMemory();
+                }}
+              />
+              <button
+                onClick={handleAddMemory}
+                className="rounded-2xl bg-[linear-gradient(135deg,#ff995d,#ff6b5d)] px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {memories.length === 0 ? (
+                <div className="rounded-2xl border border-white/8 bg-black/10 py-5 text-center text-sm text-white/40">
+                  Thuki hasn't learned any memories yet.
+                </div>
+              ) : (
+                memories.map((mem) => (
+                  <div
+                    key={mem.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/4 p-3.5 transition-all hover:bg-white/6"
+                  >
+                    {editingMemoryId === mem.id ? (
+                      <input
+                        type="text"
+                        value={editingMemoryText}
+                        onChange={(e) => setEditingMemoryText(e.target.value)}
+                        className="flex-1 rounded-xl border border-white/14 bg-black/35 px-3 py-1.5 text-sm text-white outline-none focus:border-white/24"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") void handleSaveEdit(mem.id);
+                          if (e.key === "Escape") setEditingMemoryId(null);
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="text-sm text-white/82">{mem.content}</span>
+                    )}
+
+                    <div className="flex shrink-0 gap-1.5">
+                      {editingMemoryId === mem.id ? (
+                        <>
+                          <button
+                            onClick={() => void handleSaveEdit(mem.id)}
+                            className="rounded-xl bg-green-500/18 px-3 py-1.5 text-xs font-semibold text-green-300 transition-colors hover:bg-green-500/26"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingMemoryId(null)}
+                            className="rounded-xl bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 transition-colors hover:bg-white/16"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleStartEdit(mem.id, mem.content)}
+                            className="rounded-xl bg-white/6 px-3 py-1.5 text-xs font-semibold text-white/62 transition-colors hover:bg-white/12 hover:text-white"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => void handleDeleteMemory(mem.id)}
+                            className="rounded-xl bg-red-500/12 px-3 py-1.5 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/22"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </section>

@@ -179,7 +179,7 @@ fn check_login_item() -> bool {
 
 use tauri::command;
 
-const BUNDLE_ID: &str = "ai.nexus.Nexus-AI";
+const BUNDLE_ID: &str = "com.nexusai.macos";
 
 lazy_static::lazy_static! {
     static ref AUTO_LAUNCH_MANAGER: AutoLaunchManager = AutoLaunchManager::new(BUNDLE_ID);

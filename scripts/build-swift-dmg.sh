@@ -10,18 +10,10 @@ DMG_NAME="Nexus-AI-Native.dmg"
 APP_PATH="$DERIVED_DIR/Build/Products/Release/$APP_NAME"
 DMG_PATH="$BUILD_DIR/$DMG_NAME"
 
-rm -rf "$DERIVED_DIR" "$STAGE_DIR"
+rm -rf "$STAGE_DIR"
 mkdir -p "$BUILD_DIR" "$STAGE_DIR"
 
-xcodebuild \
-  -scheme Nexus-AI \
-  -project "$ROOT_DIR/Nexus-AI.xcodeproj" \
-  -configuration Release \
-  -sdk macosx \
-  CODE_SIGNING_ALLOWED=NO \
-  CODE_SIGNING_REQUIRED=NO \
-  -derivedDataPath "$DERIVED_DIR" \
-  build
+"$ROOT_DIR/scripts/build-swift-app.sh"
 
 if [[ ! -d "$APP_PATH" ]]; then
   echo "Expected app bundle not found at $APP_PATH" >&2
@@ -40,3 +32,7 @@ hdiutil create \
   "$DMG_PATH"
 
 echo "DMG created at $DMG_PATH"
+
+# Copy DMG to project root for easy access
+cp "$DMG_PATH" "$ROOT_DIR/$DMG_NAME"
+echo "Also copied to $ROOT_DIR/$DMG_NAME"

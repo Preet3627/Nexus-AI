@@ -3,6 +3,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createXai } from "@ai-sdk/xai";
+import { createGroq } from "@ai-sdk/groq";
 import type { AppSettings } from "../../types/settings";
 
 function env(name: string): string | undefined {
@@ -15,7 +16,16 @@ export function getActiveProvider(settings?: AppSettings | null): string {
 }
 
 export function getActiveModel(settings?: AppSettings | null): string {
-  return settings?.ai_model?.trim() || "gemma4:e2b";
+  const providedModel = settings?.ai_model?.trim();
+  if (providedModel) return providedModel;
+
+  const providerId = getActiveProvider(settings);
+  if (providerId === "openai") return "gpt-5-mini";
+  if (providerId === "google") return "gemini-1.5-flash";
+  if (providerId === "anthropic") return "claude-3-7-sonnet-latest";
+  if (providerId === "xai") return "grok-3-mini";
+  if (providerId === "groq") return "deepseek-r1-distill-llama-70b";
+  return "";
 }
 
 export function createLanguageModel(
@@ -25,24 +35,28 @@ export function createLanguageModel(
   const model = getActiveModel(settings);
 
   switch (provider) {
-    case "vercel-openai": {
+    case "openai": {
       const apiKey =
         settings?.openai_api_key?.trim() || env("VITE_OPENAI_API_KEY");
       return apiKey ? createOpenAI({ apiKey })(model) : null;
     }
-    case "vercel-google": {
+    case "google": {
       const apiKey =
         settings?.google_api_key?.trim() || env("VITE_GOOGLE_API_KEY");
       return apiKey ? createGoogleGenerativeAI({ apiKey })(model) : null;
     }
-    case "vercel-anthropic": {
+    case "anthropic": {
       const apiKey =
         settings?.anthropic_api_key?.trim() || env("VITE_ANTHROPIC_API_KEY");
       return apiKey ? createAnthropic({ apiKey })(model) : null;
     }
-    case "vercel-xai": {
+    case "xai": {
       const apiKey = settings?.xai_api_key?.trim() || env("VITE_XAI_API_KEY");
       return apiKey ? createXai({ apiKey })(model) : null;
+    }
+    case "groq": {
+      const apiKey = settings?.groq_api_key?.trim() || env("VITE_GROQ_API_KEY");
+      return apiKey ? createGroq({ apiKey })(model) : null;
     }
     default:
       return null;
@@ -63,6 +77,10 @@ interface AnthropicModelsResponse {
 
 interface XaiModelsResponse {
   data: Array<{ name: string }>;
+}
+
+interface GroqModelsResponse {
+  data: Array<{ id: string }>;
 }
 
 export async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
@@ -93,7 +111,12 @@ export async function fetchGoogleModels(apiKey: string): Promise<string[]> {
     const data: GoogleModelsResponse = await response.json();
     return data.models.map((m) => m.name.replace("models/", "")).sort();
   } catch {
-    return ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+    return [
+      "gemini-1.5-pro",
+      "gemini-1.5-flash",
+      "gemini-2.0-flash",
+      "gemini-3.0-flash"
+    ];
   }
 }
 
@@ -129,5 +152,20 @@ export async function fetchXaiModels(apiKey: string): Promise<string[]> {
     return data.data.map((m) => m.name).sort();
   } catch {
     return ["grok-3-mini", "grok-3", "grok-2"];
+  }
+}
+
+export async function fetchGroqModels(apiKey: string): Promise<string[]> {
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: {
+        Authorization: "Bearer " + apiKey,
+      },
+    });
+    if (!response.ok) throw new Error("HTTP " + response.status);
+    const data: GroqModelsResponse = await response.json();
+    return data.data.map((m) => m.id).sort();
+  } catch {
+    return ["deepseek-r1-distill-llama-70b", "llama-3.3-70b-versatile", "mixtral-8x7b-32768"];
   }
 }

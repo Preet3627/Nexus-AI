@@ -37,17 +37,15 @@ pub mod security;
 pub mod settings;
 pub mod shared_keychain;
 pub mod siri_bridge;
+pub mod memory_manager;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::{
-    menu::{Menu, MenuBuilder, MenuItem},
+    menu::{Menu, MenuBuilder, MenuItem, Submenu, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager, RunEvent, WebviewWindow,
 };
-
-#[cfg(target_os = "macos")]
-use tauri::ActivationPolicy;
 
 #[cfg(target_os = "macos")]
 use tauri_nspanel::{
@@ -376,6 +374,43 @@ fn set_window_frame(app_handle: tauri::AppHandle, x: f64, y: f64, width: f64, he
     });
 }
 
+/// Resizes the main window on the macOS main thread.
+///
+/// Transparent Tauri windows can occasionally keep a stale clipped region on
+/// the first post-launch resize. `force_refresh` nudges the height by 1 logical
+/// point before applying the real size, which forces AppKit/WebKit to redraw
+/// the backing surface without introducing a visible jump.
+#[tauri::command]
+fn set_window_size(
+    app_handle: tauri::AppHandle,
+    width: f64,
+    height: f64,
+    force_refresh: Option<bool>,
+) {
+    if !width.is_finite() || !height.is_finite() {
+        return;
+    }
+
+    let width = width.clamp(1.0, 10_000.0);
+    let height = height.clamp(1.0, 10_000.0);
+    let refresh = force_refresh.unwrap_or(false);
+
+    let handle = app_handle.clone();
+    let _ = app_handle.run_on_main_thread(move || {
+        if let Some(window) = handle.get_webview_window("main") {
+            if refresh {
+                let nudged_height = (height + 1.0).clamp(1.0, 10_000.0);
+                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(
+                    width,
+                    nudged_height,
+                )));
+            }
+
+            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize::new(width, height)));
+        }
+    });
+}
+
 /// Synchronizes the Rust-side visibility tracking when the frontend
 /// completes its exit animation and hides the native window.
 #[tauri::command]
@@ -383,7 +418,7 @@ fn notify_overlay_hidden() {
     OVERLAY_INTENDED_VISIBLE.store(false, Ordering::SeqCst);
 }
 
-const FRONTEND_READY_TIMEOUT_MS: u64 = 5000;
+const FRONTEND_READY_TIMEOUT_MS: u64 = 10000;
 
 fn start_frontend_ready_timeout(app_handle: tauri::AppHandle) {
     let handle = app_handle.clone();
@@ -577,13 +612,11 @@ fn show_onboarding_window(app_handle: &tauri::AppHandle, stage: onboarding::Onbo
         }
         match handle.get_webview_panel("main") {
             Ok(panel) => {
-                // Use normal window level so System Settings can appear above.
+                // Strip nonactivating_panel for onboarding — it prevents mouse
+                // events from reaching the webview in production builds.
+                // Keep the panel borderless so it stays decoration-free.
+                panel.set_style_mask(StyleMask::empty().into());
                 panel.set_level(0);
-                // Re-enable native shadow for onboarding. init_panel disables
-                // it for the overlay to avoid the key/non-key shadow flicker,
-                // but for onboarding the native shadow looks professional and
-                // renders outside the window boundary — no transparent padding
-                // needed.
                 panel.set_has_shadow(true);
                 panel.show_and_make_key();
             }
@@ -659,8 +692,6 @@ fn spawn_periodic_image_cleanup(app_handle: tauri::AppHandle) {
 /// Panics if the Tauri runtime fails to initialise.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Load .env file so THUKI_SYSTEM_PROMPT and future backend env vars
-    // work the same way as Vite's VITE_* vars for the frontend.
     dotenvy::dotenv().ok();
 
     let mut builder = tauri::Builder::default();
@@ -672,13 +703,18 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            // ── SQLite database for conversation history + app settings ──
+            println!("thuki: [setup] starting application bootstrap");
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()
-                .expect("failed to resolve app data directory");
+                .expect("failed to get app data dir");
+            println!("thuki: [setup] app data directory: {:?}", app_data_dir);
+
             let db_conn = database::open_database(&app_data_dir)
                 .expect("failed to initialise SQLite database");
+            println!("thuki: [setup] database initialized");
+
             app.manage(history::Database(std::sync::Mutex::new(db_conn)));
 
             let settings = settings::load_from_app_handle(app.app_handle());
@@ -686,18 +722,36 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             {
                 if settings.hide_from_dock {
-                    app.set_activation_policy(ActivationPolicy::Accessory);
+                    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
                 } else {
-                    app.set_activation_policy(ActivationPolicy::Regular);
+                    app.set_activation_policy(tauri::ActivationPolicy::Regular);
                 }
             }
 
             // ── NSPanel conversion (macOS only) ──────────────────────────
             #[cfg(target_os = "macos")]
             init_panel(app.app_handle());
+            println!("thuki: [setup] native panel initialized");
+
+            let app_handle = app.handle();
+
+            // ── Onboarding ───────────────────────────────────────────────
+            {
+                let db_state = app.state::<history::Database>();
+                let conn = db_state.0.lock().unwrap();
+                if let Some(stage) = onboarding::compute_startup_stage(&conn).unwrap() {
+                    println!("thuki: [setup] onboarding needed (stage: {:?})", stage);
+                    show_onboarding_window(&app_handle, stage);
+                }
+            }
 
             // ── Frontend ready timeout fallback ───────────────────────────
             start_frontend_ready_timeout(app.handle().clone());
+
+            // ── Activator (Hotkeys) ───────────────────────────────────────
+            if let Err(e) = activator::create_event_tap(app_handle.clone()) {
+                eprintln!("thuki: [activator] FAILED to create event tap: {e}");
+            }
 
             // ── System tray icon + menu ───────────────────────────────────
             let show_item = MenuItem::with_id(app, "show", "Open Nexus AI", true, None::<&str>)?;
@@ -775,6 +829,15 @@ pub fn run() {
                 let help_item =
                     MenuItem::with_id(&app_handle, "help", "Nexus AI Help", true, Some("Cmd+?"))?;
 
+                let edit_menu = Submenu::new(&app_handle, "Edit", true)?;
+                edit_menu.append(&PredefinedMenuItem::undo(&app_handle, None)?)?;
+                edit_menu.append(&PredefinedMenuItem::redo(&app_handle, None)?)?;
+                edit_menu.append(&PredefinedMenuItem::separator(&app_handle)?)?;
+                edit_menu.append(&PredefinedMenuItem::cut(&app_handle, None)?)?;
+                edit_menu.append(&PredefinedMenuItem::copy(&app_handle, None)?)?;
+                edit_menu.append(&PredefinedMenuItem::paste(&app_handle, None)?)?;
+                edit_menu.append(&PredefinedMenuItem::select_all(&app_handle, None)?)?;
+
                 let main_menu = MenuBuilder::new(&app_handle)
                     .item(&settings_item)
                     .separator()
@@ -782,6 +845,7 @@ pub fn run() {
                     .item(&theme_light)
                     .separator()
                     .item(&help_item)
+                    .item(&edit_menu)
                     .build()?;
 
                 app.set_menu(main_menu)?;
@@ -834,7 +898,11 @@ pub fn run() {
             }
 
             // ── Persistent HTTP client ────────────────────────────────
-            app.manage(reqwest::Client::new());
+            let http_client = reqwest::Client::builder()
+                .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new());
+            app.manage(http_client);
 
             // ── Generation + conversation state ─────────────────────
             app.manage(commands::GenerationState::new());
@@ -881,6 +949,8 @@ pub fn run() {
             #[cfg(not(coverage))]
             images::cleanup_orphaned_images_command,
             #[cfg(not(coverage))]
+            images::encode_images_as_base64_command,
+            #[cfg(not(coverage))]
             screenshot::capture_screenshot_command,
             #[cfg(not(coverage))]
             screenshot::capture_full_screen_command,
@@ -888,8 +958,11 @@ pub fn run() {
             notify_frontend_ready,
             log_to_terminal,
             set_window_frame,
+            set_window_size,
             #[cfg(not(coverage))]
             permissions::check_accessibility_permission,
+            #[cfg(not(coverage))]
+            permissions::request_accessibility_access_command,
             #[cfg(not(coverage))]
             permissions::open_accessibility_settings,
             #[cfg(not(coverage))]
@@ -944,11 +1017,19 @@ pub fn run() {
             native_actions::play_song,
             native_actions::run_shell_command,
             native_actions::set_output_volume,
+            native_actions::show_native_alert,
             native_actions::verify_touch_id,
             file_extraction::extract_file_content,
             productivity::list_calendar_events,
             productivity::create_calendar_event,
-            productivity::create_alarm_reminder
+            productivity::create_alarm_reminder,
+            memory_manager::add_user_memory,
+            memory_manager::delete_user_memory,
+            memory_manager::edit_user_memory,
+            memory_manager::get_user_memories,
+            memory_manager::create_user_profile,
+            memory_manager::switch_user_profile,
+            memory_manager::get_user_profiles
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

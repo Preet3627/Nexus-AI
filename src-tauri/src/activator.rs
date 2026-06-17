@@ -27,6 +27,7 @@ use core_graphics::event::{
     CGEvent, CGEventFlags, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
     CGEventType, CallbackResult, EventField,
 };
+use tauri::Emitter;
 
 /// Maximum temporal proximity between trigger events to qualify as an activation signal.
 const ACTIVATION_WINDOW: Duration = Duration::from_millis(400);
@@ -127,7 +128,10 @@ fn evaluate_activation(state: &mut ActivationState, is_press: bool) -> bool {
                 .unwrap_or_default();
             state.recent_presses.clear();
             state.last_activation = Some(now);
-            eprintln!("thuki: [activator] sequence complete (delta: {}ms)", delta.as_millis());
+            eprintln!(
+                "thuki: [activator] sequence complete (delta: {}ms)",
+                delta.as_millis()
+            );
             return true;
         }
     } else {
@@ -320,8 +324,12 @@ where
             // Detailed logging to diagnose why double-tap might fail on specific systems
             if is_control || keycode == KC_PRIMARY_L || keycode == KC_PRIMARY_R {
                 let s = cb_state.lock().unwrap();
-                if s.is_pressed != is_control || keycode == KC_PRIMARY_L || keycode == KC_PRIMARY_R {
-                    eprintln!("thuki: [activator] keycode: {:#04x}, is_control: {}", keycode, is_control);
+                if s.is_pressed != is_control || keycode == KC_PRIMARY_L || keycode == KC_PRIMARY_R
+                {
+                    eprintln!(
+                        "thuki: [activator] keycode: {:#04x}, is_control: {}",
+                        keycode, is_control
+                    );
                 }
             }
 
@@ -369,6 +377,19 @@ where
             TapExitReason::CreationFailed
         }
     }
+}
+
+/// Creates and starts the overlay event tap.
+///
+/// Listens for the double-Control activation sequence and emits a `toggle-overlay`
+/// event to the Tauri frontend when detected.
+pub fn create_event_tap(app_handle: tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let activator = OverlayActivator::new();
+    activator.start(move || {
+        let _ = app_handle.emit("toggle-overlay", ());
+    });
+    Box::leak(Box::new(activator));
+    Ok(())
 }
 
 #[cfg(test)]

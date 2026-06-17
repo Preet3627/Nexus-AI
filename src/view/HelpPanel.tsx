@@ -1,8 +1,10 @@
 import { motion } from "framer-motion";
+import type { Ref } from "react";
 
 interface HelpPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  panelRef?: Ref<HTMLDivElement>;
 }
 
 const siriShortcuts = [
@@ -96,7 +98,7 @@ const quickCommands = [
   { cmd: "/screen", desc: "Capture screen" },
 ];
 
-export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
+export function HelpPanel({ isOpen, onClose, panelRef }: HelpPanelProps) {
   if (!isOpen) return null;
 
   return (
@@ -108,11 +110,14 @@ export function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
       onClick={onClose}
     >
       <motion.div
+        ref={panelRef}
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        data-no-window-drag
         className="bg-[#1a1a2e] rounded-3xl shadow-2xl w-[560px] max-h-[85vh] overflow-hidden border border-white/10"
+        onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 bg-gradient-to-r from-[#1a1a2e] to-[#16213e]">

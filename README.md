@@ -29,7 +29,12 @@
 - 📸 **Screen Capture** - Analyze screen content with `/screen` command
 - 🔗 **Comet-AI Bridge** - Execute action chains and browser automation
 - 💾 **Encrypted History** - Secure conversation storage with AES-256-GCM
-- 🔐 **Biometric Auth** - Touch ID / Face ID protection
+- 🔐 **Hardcoded Risk Permissions** - Hardcoded security levels (Low, Medium, High) for all native commands (volume, open, play, web, shell)
+- 🔒 **Biometric Auth** - Mandatory Touch ID verification for High-risk operations (e.g. shell execution) or unverified Low/Medium actions
+- ⚠️ **Native Warning Popups** - Native macOS dialog warning pop-ups on dangerous instructions using `/warn` action
+- 🎛️ **Command Automation Panel** - Beautiful customizable switches to automate Low/Medium risk actions without biometric prompts
+- 🧠 **Local Memory (RAG)** - Pure Rust-based semantic retrieval-augmented memory (`memories.json`) returning facts automatically across sessions
+- 🎭 **Tone Profiles** - Switcher supporting multiple formatting presets (`default`, `serious`, `funny`) directly from conversational action commands
 - ☁️ **iCloud Sync** - Optional encrypted sync across devices
 - 🖥️ **System Tray** - Background operation with quick access
 - 🚀 **Hidden Mode** - Stays hidden in dock like Raycast (LSUIElement)

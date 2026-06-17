@@ -8,7 +8,7 @@ use tokio_util::sync::CancellationToken;
 
 /// Default configuration constants as the application currently lacks a Settings UI.
 pub const DEFAULT_OLLAMA_URL: &str = "http://127.0.0.1:11434";
-pub const DEFAULT_MODEL_NAME: &str = "gemma4:e2b";
+pub const DEFAULT_MODEL_NAME: &str = "llama3.2";
 const DEFAULT_SYSTEM_PROMPT: &str = include_str!("../prompts/system_prompt.txt");
 
 /// Classifies the kind of error returned from the Ollama backend.
@@ -34,14 +34,11 @@ pub struct OllamaError {
 }
 
 /// Maps an HTTP status code to a user-friendly `OllamaError`.
-pub fn classify_http_error(status: u16) -> OllamaError {
+pub fn classify_http_error(status: u16, model: &str) -> OllamaError {
     match status {
         404 => OllamaError {
             kind: OllamaErrorKind::ModelNotFound,
-            message: format!(
-                "Model not found\nRun: ollama pull {} in a terminal.",
-                DEFAULT_MODEL_NAME
-            ),
+            message: format!("Model not found\nRun: ollama pull {} in a terminal.", model),
         },
         _ => OllamaError {
             kind: OllamaErrorKind::Other,
@@ -259,25 +256,25 @@ pub async fn list_ollama_models(
             .unwrap_or_else(|| DEFAULT_OLLAMA_URL.to_string())
             .trim_end_matches('/')
     );
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| {
-            if e.is_connect() || e.is_timeout() {
-                "Ollama isn't running. Start Ollama and try again.".to_string()
-            } else {
-                format!("Failed to connect to Ollama: {}", e)
-            }
-        })?;
+    let response = client.get(&url).send().await.map_err(|e| {
+        if e.is_connect() || e.is_timeout() {
+            "Ollama isn't running. Start Ollama and try again.".to_string()
+        } else {
+            format!("Failed to connect to Ollama: {}", e)
+        }
+    })?;
 
     if !response.status().is_success() {
-        return Err(format!("Ollama API returned status {}", response.status().as_u16()));
+        return Err(format!(
+            "Ollama API returned status {}",
+            response.status().as_u16()
+        ));
     }
 
-    let tags: OllamaTagsResponse = response.json().await.map_err(|e| {
-        format!("Failed to parse Ollama models response: {}", e)
-    })?;
+    let tags: OllamaTagsResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Ollama models response: {}", e))?;
 
     Ok(tags.models.into_iter().map(|m| m.name).collect())
 }
@@ -316,7 +313,7 @@ pub async fn stream_ollama_chat(
         Ok(response) => {
             if !response.status().is_success() {
                 let status = response.status().as_u16();
-                on_chunk(StreamChunk::Error(classify_http_error(status)));
+                on_chunk(StreamChunk::Error(classify_http_error(status, model)));
                 return accumulated;
             }
 
@@ -404,16 +401,18 @@ pub async fn ask_ollama(
     image_paths: Option<Vec<String>>,
     think: bool,
     base_url: Option<String>,
+    model: Option<String>,
     on_event: Channel<StreamChunk>,
     client: State<'_, reqwest::Client>,
     generation: State<'_, GenerationState>,
     history: State<'_, ConversationHistory>,
     system_prompt: State<'_, SystemPrompt>,
     model_config: State<'_, ModelConfig>,
+    app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     let endpoint = format!(
         "{}/api/chat",
-        base_url
+        base_url.clone()
             .unwrap_or_else(|| DEFAULT_OLLAMA_URL.to_string())
             .trim_end_matches('/')
     );
@@ -427,7 +426,7 @@ pub async fn ask_ollama(
         Some(ref qt) if !qt.trim().is_empty() => {
             format!("[Highlighted Text]\n\"{}\"\n\n[Request]\n{}", qt, message)
         }
-        _ => message,
+        _ => message.clone(),
     };
 
     // Base64-encode attached images for the Ollama multimodal API.
@@ -444,6 +443,32 @@ pub async fn ask_ollama(
         images,
     };
 
+    // Load active profile tone
+    let profiles_config = crate::memory_manager::load_profiles(&app_handle).unwrap_or_default();
+    let mut tone_instructions = "helpful, polite, and descriptive".to_string();
+    if let Some(active_p) = profiles_config.profiles.iter().find(|p| p.name.to_lowercase() == profiles_config.active_profile.to_lowercase()) {
+        tone_instructions = active_p.tone.clone();
+    }
+
+    // Load and retrieve relevant memories based on the user's message query
+    let all_memories = crate::memory_manager::load_memories(&app_handle).unwrap_or_default();
+    let relevant_memories = crate::memory_manager::retrieve_relevant_memories(&message, &all_memories);
+
+    let mut memory_prompt = String::new();
+    if !relevant_memories.is_empty() {
+        memory_prompt.push_str("\n\n[RELEVANT MEMORIES / FACTS ABOUT THE USER]\n");
+        for mem in relevant_memories {
+            memory_prompt.push_str(&format!("- {}\n", mem.content));
+        }
+    }
+
+    let final_system_prompt = format!(
+        "{}\n\n[USER PROFILE / TONE PREFERENCE]\nYou are responding in the following tone: \"{}\"\nEnsure your tone matches this preference completely.{}",
+        system_prompt.0.clone(),
+        tone_instructions,
+        memory_prompt
+    );
+
     // Snapshot the current epoch and build the messages array for Ollama.
     // The user message is NOT yet committed to history — it is only added
     // after a response (including partial/cancelled) to prevent orphaned
@@ -453,7 +478,7 @@ pub async fn ask_ollama(
         let epoch = history.epoch.load(Ordering::SeqCst);
         let mut msgs = vec![ChatMessage {
             role: "system".to_string(),
-            content: system_prompt.0.clone(),
+            content: final_system_prompt,
             images: None,
         }];
         msgs.extend(conv.clone());
@@ -461,9 +486,29 @@ pub async fn ask_ollama(
         (epoch, msgs)
     };
 
+    let active_model = match model.filter(|m| !m.trim().is_empty()) {
+        Some(m) => m,
+        None => {
+            let tags_url = format!("{}/api/tags", base_url.as_deref().unwrap_or(DEFAULT_OLLAMA_URL).trim_end_matches('/'));
+            match client.get(&tags_url).send().await {
+                Ok(response) if response.status().is_success() => {
+                    if let Ok(tags) = response.json::<OllamaTagsResponse>().await {
+                        if let Some(first) = tags.models.into_iter().next() {
+                            first.name
+                        } else {
+                            model_config.active.clone()
+                        }
+                    } else {
+                        model_config.active.clone()
+                    }
+                }
+                _ => model_config.active.clone(),
+            }
+        }
+    };
     let accumulated = stream_ollama_chat(
         &endpoint,
-        &model_config.active,
+        &active_model,
         messages,
         think,
         &client,
@@ -1285,21 +1330,21 @@ mod tests {
 
     #[test]
     fn classify_http_404_returns_model_not_found() {
-        let err = classify_http_error(404);
+        let err = classify_http_error(404, "llama3.2:3b");
         assert_eq!(err.kind, OllamaErrorKind::ModelNotFound);
-        assert!(err.message.contains("gemma4:e2b"));
+        assert!(err.message.contains("llama3.2:3b"));
     }
 
     #[test]
     fn classify_http_500_returns_other_with_status() {
-        let err = classify_http_error(500);
+        let err = classify_http_error(500, DEFAULT_MODEL_NAME);
         assert_eq!(err.kind, OllamaErrorKind::Other);
         assert!(err.message.contains("500"));
     }
 
     #[test]
     fn classify_http_401_returns_other_with_status() {
-        let err = classify_http_error(401);
+        let err = classify_http_error(401, DEFAULT_MODEL_NAME);
         assert_eq!(err.kind, OllamaErrorKind::Other);
         assert!(err.message.contains("401"));
     }

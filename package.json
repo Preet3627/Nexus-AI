@@ -1,21 +1,21 @@
 {
-  "name": "nexus-ai",
-  "version": "0.1.0",
+  "name": "Nexus-AI",
+  "version": "0.2.0",
   "description": "Native macOS AI assistant with floating overlay",
   "type": "module",
-  "author": "Nexus-AI Team",
+  "author": "Latestinssan",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/Nexus-AI.git"
+    "url": "https://github.com/Preet3627/Nexus-AI.git"
   },
   "scripts": {
     "dev": "tauri dev",
     "frontend:dev": "vite",
     "build:frontend": "tsc && vite build",
-    "build:backend": "tauri build --bundles app",
+    "build:backend": "tauri build && cp -f src-tauri/target/release/bundle/dmg/Nexus-AI_*.dmg ./Nexus-AI.dmg && echo 'DMG copied to ./Nexus-AI.dmg'",
     "build:all": "npm run build:frontend && npm run build:backend",
-    "native:build": "xcodebuild -scheme Nexus-AI -project Nexus-AI.xcodeproj -configuration Release -sdk macosx CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build",
+    "native:build": "./scripts/build-swift-app.sh",
     "native:dmg": "./scripts/build-swift-dmg.sh",
     "preview": "vite preview",
     "tauri": "tauri",
@@ -40,6 +40,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",
     "@ai-sdk/google": "^3.0.64",
+    "@ai-sdk/groq": "^3.0.39",
     "@ai-sdk/openai": "^3.0.53",
     "@ai-sdk/xai": "^3.0.83",
     "@google-cloud/local-auth": "^3.0.1",

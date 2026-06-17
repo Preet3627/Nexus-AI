@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import type React from "react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import thukiLogo from "../../../src-tauri/icons/128x128.png";
+import nexusLogo from "../../../src-tauri/icons/128x128.png";
 
 /** How often to poll for permission grants after the user requests them. */
 const POLL_INTERVAL_MS = 500;
@@ -150,7 +150,11 @@ const Spinner = () => (
  * The outer container is transparent so the rounded panel corners are visible
  * against the macOS desktop.
  */
-export function PermissionsStep() {
+interface PermissionsStepProps {
+  onComplete?: () => void;
+}
+
+export function PermissionsStep({ onComplete }: PermissionsStepProps) {
   const [accessibilityStatus, setAccessibilityStatus] =
     useState<AccessibilityStatus>("pending");
   const [screenRecordingStatus, setScreenRecordingStatus] =
@@ -199,6 +203,8 @@ export function PermissionsStep() {
 
   const handleGrantAccessibility = useCallback(async () => {
     setAccessibilityStatus("requesting");
+    // Show the native macOS Accessibility prompt so the app gets registered
+    await invoke("request_accessibility_access_command");
     await invoke("open_accessibility_settings");
     axPollRef.current = setInterval(async () => {
       if (axInFlightRef.current) return;
@@ -245,6 +251,11 @@ export function PermissionsStep() {
   const handleQuitAndRelaunch = useCallback(async () => {
     await invoke("quit_and_relaunch");
   }, []);
+
+  const handleSkip = useCallback(async () => {
+    await invoke("finish_onboarding");
+    onComplete?.();
+  }, [onComplete]);
 
   const accessibilityGranted = accessibilityStatus === "granted";
   const isAxRequesting = accessibilityStatus === "requesting";
@@ -302,10 +313,10 @@ export function PermissionsStep() {
           style={{ textAlign: "center", marginBottom: 18, cursor: "grab" }}
         >
           <img
-            src={thukiLogo}
+            src={nexusLogo}
             width={64}
             height={64}
-            alt="Thuki"
+            alt="Nexus-AI"
             style={{
               objectFit: "contain",
               pointerEvents: "none",
@@ -327,7 +338,7 @@ export function PermissionsStep() {
             margin: "0 0 20px",
           }}
         >
-          {"Let's get Thuki set up"}
+          {"Let's get Nexus-AI set up"}
         </h1>
 
         {/* Steps */}
@@ -370,7 +381,7 @@ export function PermissionsStep() {
                 Accessibility
               </div>
               <div style={{ fontSize: 12, color: "#6b6660", lineHeight: 1.5 }}>
-                Lets Thuki respond to activator key (<KeyChip label="⌃" />
+                Lets Nexus-AI respond to activator key (<KeyChip label="⌃" />
                 <KeyChip label="⌃" />)
               </div>
             </div>
@@ -457,9 +468,9 @@ export function PermissionsStep() {
               <>
                 <CTAButton
                   onClick={handleQuitAndRelaunch}
-                  aria-label="Quit and Reopen Thuki"
+                  aria-label="Quit and Reopen Nexus-AI"
                 >
-                  Quit & Reopen Thuki
+                  Quit & Reopen Nexus-AI
                 </CTAButton>
                 <p
                   style={{
@@ -476,6 +487,23 @@ export function PermissionsStep() {
             )}
           </>
         )}
+        {/* Skip */}
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <button
+            onClick={handleSkip}
+            style={{
+              background: "none",
+              border: "none",
+              color: "rgba(255,255,255,0.3)",
+              fontSize: 12,
+              cursor: "pointer",
+              textDecoration: "underline",
+              textUnderlineOffset: 3,
+            }}
+          >
+            Skip setup
+          </button>
+        </div>
       </motion.div>
     </div>
   );
