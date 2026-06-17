@@ -42,6 +42,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Build frontend
+        run: npm run build:frontend
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -85,3 +88,23 @@ jobs:
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') }}
           args: ${{ matrix.args }}
+
+      - name: Build Native DMG
+        if: matrix.platform == 'macos-latest'
+        run: |
+          chmod +x scripts/build-swift-app.sh scripts/build-swift-dmg.sh
+          ./scripts/build-swift-dmg.sh
+
+      - name: Upload Native DMG
+        if: matrix.platform == 'macos-latest'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The tag name depends on whether it's a tag push or workflow_dispatch
+          TAG_NAME="${{ github.ref_name }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG_NAME="v${{ github.event.inputs.version }}"
+          fi
+          
+          echo "Uploading Nexus-AI-Native.dmg to release $TAG_NAME"
+          gh release upload "$TAG_NAME" Nexus-AI-Native.dmg --clobber
